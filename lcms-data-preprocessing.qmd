@@ -81,76 +81,21 @@ sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
 
 # Checking differences between mixes
 
-Comparing data from mixes 3, 7 and 13.
+Comparing data from mixes 3, 7 and 13:
+- data is tricky, there are the same large differences between the low and high
+  mix.
+- **serine**: the rt of serine depends on the spiking with different
+  concentration - even independently if serine itself was spiked. Serine
+  differences are observed in mix 07 (which is expected), but also, to a smaller
+  extend in mix 03, where it was **not** spiked.
+- **proline**: signal seems to be at 170 seconds. that signal is not different
+  between samples, which fits expectations. This also matches the results from
+  mix 09.
+- **guanine**: retention time is constant. [M+H-H2O]+ signal is NOT guanine.
+  mix 03 shows very large difference. also mix 07 to some extend.
+- **uridine**: differences present in mix 13 (as expected). The (validated)
+  retention time is at 120 seconds.
 
-```{r}
-mx <- rep("mix_13", length(std_data))
-mx[grep("Mix03", sampleData(std_data)$mzML)] <- "mix_03"
-mx[grep("Mix07", sampleData(std_data)$mzML)] <- "mix_07"
-
-col_mix <- c(mix_13 = "#E41A1C", mix_03 = "#377EB8", mix_07 = "#4DAF4A")
-col_sample <- col_mix[mx]
-
-#' investigating serine signal
-serine_formula <- "C3H7NO3"
-serine_mass <- calculateMass(serine_formula)
-
-serine_mz <- mass2mz(serine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
-serine_mzr <- cbind(mzmin = serine_mz - 0.01, mzmax = serine_mz + 0.01)
-
-serine_eic <- chromatogram(std_data, mz = serine_mzr)
-plot(serine_eic, col = paste0(col_sample, 80), xlim = c(170, 200), lwd = 2,)
-legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
-#' - Signal seems to be between 170 and 185 seconds. This is backed by MS2
-#'   match in the mix 07 analysis.
-#' - Serine rt is dependent on spiking - that seems to cause a shift.
-#' - Concentration differs in mix 07, but also, to some extent in mix 03. No
-#'   difference present in mix 13.
-
-
-#' proline
-proline_formula <- "C5H9NO2"
-proline_mass <- calculateMass(proline_formula)
-
-proline_mz <- mass2mz(proline_mass, c("[M+H]+", "[M+NH4]+", "[M+H-CH2O2]+"))[1, ]
-proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
-
-proline_eic <- chromatogram(std_data, mz = proline_mzr)
-plot(proline_eic, col = paste0(col_sample, 80), xlim = c(160, 200))
-legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
-#' - signal seems to be at 170 seconds. that signal is not different between
-#'   samples, #which fits expectations. This also matches the results from
-#'   mix 09.
-
-#' guanine
-guanine_formula <- "C5H5N5O"
-guanine_mass <- calculateMass(guanine_formula)
-
-guanine_mz <- mass2mz(guanine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
-guanine_mzr <- cbind(mzmin = guanine_mz - 0.01, mzmax = guanine_mz + 0.01)
-
-guanine_eic <- chromatogram(std_data, mz = guanine_mzr)
-plot(guanine_eic, col = paste0(col_sample, 80), xlim = c(150, 170))
-legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
-#' - retention time is fixed.
-#' - [M+H-H2O]+ signal is NOT guanine.
-#' - mix 03 shows very large difference. also mix 07 to some extend.
-
-#' uridine
-uridine_formula <- "C9H12N2O6"
-uridine_mass <- calculateMass(uridine_formula)
-
-uridine_mz <- mass2mz(uridine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
-uridine_mzr <- cbind(mzmin = uridine_mz - 0.01, mzmax = uridine_mz + 0.01)
-
-uridine_eic <- chromatogram(std_data, mz = uridine_mzr)
-plot(uridine_eic, col = paste0(col_sample, 80), xlim = c(100, 200))
-tmp <- chromatogram(std_data, mz = uridine_mzr[1, ], rt = c(110, 140))
-plot(tmp, col = paste0(col_sample, 80))
-legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
-#' - Expect differences in mix 13. It's (validated) at 120 seconds.
-
-```
 
 # Initial data inspection
 
