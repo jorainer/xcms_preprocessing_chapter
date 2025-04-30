@@ -1,0 +1,569 @@
+---
+title: "Preprocessing of LC-MS data with *xcms*"
+format:
+  html:
+    self-contained: true
+author: "Philippine Louail, Marilyn De Graeve, Johannes Rainer"
+code_folding: hide
+editor: visual
+date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(quarto)
+library(BiocStyle)
+knitr::opts_knit$set(root.dir = './')
+```
+
+# Introduction
+
+In this document we perform the preprocessing of an untargeted metabolomics data
+set of pooled human serum samples with spiked pure standards. These standards
+were spiked in two different concentrations to the same pool of serum samples
+and each sample was measured 3 times. In addition to a LC-MS data acquisition
+for quantification of the data, LC-MS/MS data was measured for each sample with
+a data dependent acquisition setting.
+
+
+**Note**: for now it's mostly checking properties of the data set to see what
+best to use. Later we should discuss on what to keep and include and clean the
+document up.
+
+# Dataset Description
+
+In this workflow a LC-MS/MS data is processed with ...
+
+# Data import
+
+```{r}
+#| message: false
+library(xcms)
+library(MsExperiment)
+library(readxl)
+library(RColorBrewer)
+library(pheatmap)
+library(MetaboCoreUtils)
+```
+
+- Load the xlsx file with the sample information
+- **Note**: we would ideally need to submit this data to MetaboLights. TODO:
+  prepare the files to submit.
+
+```{r}
+std_spiked <- read_xlsx("data/standards.xlsx") |> as.data.frame()
+std_files <- read_xlsx("data/standards_mzml.xlsx") |> as.data.frame()
+MZML_PATH <- "data/mzML/"
+#' citrulline, serine (180)
+#' select mix...
+std_files <- std_files[grep("Mix13", std_files$mzML), ]
+
+#' Comments on the different mixes:
+#' Mix03:
+#' Mix07:
+#' Mix13:
+
+std_data <- readMsExperiment(file.path(MZML_PATH, std_files$mzML),
+                             sampleData = std_files)
+std_data <- std_data[sampleData(std_data)$polarity == "POS"]
+```
+
+The current data set consists of the files and samples listed in the table
+below.
+
+```{r update-phenodata}
+#| tbl-cap: "Data files and samples."
+
+sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
+                         "concentration")] |>
+    kable(format = "pipe")
+```
+
+# Checking differences between mixes
+
+Comparing data from mixes 3, 7 and 13.
+
+```{r}
+mx <- rep("mix_13", length(std_data))
+mx[grep("Mix03", sampleData(std_data)$mzML)] <- "mix_03"
+mx[grep("Mix07", sampleData(std_data)$mzML)] <- "mix_07"
+
+col_mix <- c(mix_13 = "#E41A1C", mix_03 = "#377EB8", mix_07 = "#4DAF4A")
+col_sample <- col_mix[mx]
+
+#' investigating serine signal
+serine_formula <- "C3H7NO3"
+serine_mass <- calculateMass(serine_formula)
+
+serine_mz <- mass2mz(serine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
+serine_mzr <- cbind(mzmin = serine_mz - 0.01, mzmax = serine_mz + 0.01)
+
+serine_eic <- chromatogram(std_data, mz = serine_mzr)
+plot(serine_eic, col = paste0(col_sample, 80), xlim = c(170, 200), lwd = 2,)
+legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
+#' - Signal seems to be between 170 and 185 seconds. This is backed by MS2
+#'   match in the mix 07 analysis.
+#' - Serine rt is dependent on spiking - that seems to cause a shift.
+#' - Concentration differs in mix 07, but also, to some extent in mix 03. No
+#'   difference present in mix 13.
+
+
+#' proline
+proline_formula <- "C5H9NO2"
+proline_mass <- calculateMass(proline_formula)
+
+proline_mz <- mass2mz(proline_mass, c("[M+H]+", "[M+NH4]+", "[M+H-CH2O2]+"))[1, ]
+proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
+
+proline_eic <- chromatogram(std_data, mz = proline_mzr)
+plot(proline_eic, col = paste0(col_sample, 80), xlim = c(160, 200))
+legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
+#' - signal seems to be at 170 seconds. that signal is not different between
+#'   samples, #which fits expectations. This also matches the results from
+#'   mix 09.
+
+#' guanine
+guanine_formula <- "C5H5N5O"
+guanine_mass <- calculateMass(guanine_formula)
+
+guanine_mz <- mass2mz(guanine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
+guanine_mzr <- cbind(mzmin = guanine_mz - 0.01, mzmax = guanine_mz + 0.01)
+
+guanine_eic <- chromatogram(std_data, mz = guanine_mzr)
+plot(guanine_eic, col = paste0(col_sample, 80), xlim = c(150, 170))
+legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
+#' - retention time is fixed.
+#' - [M+H-H2O]+ signal is NOT guanine.
+#' - mix 03 shows very large difference. also mix 07 to some extend.
+
+#' uridine
+uridine_formula <- "C9H12N2O6"
+uridine_mass <- calculateMass(uridine_formula)
+
+uridine_mz <- mass2mz(uridine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
+uridine_mzr <- cbind(mzmin = uridine_mz - 0.01, mzmax = uridine_mz + 0.01)
+
+uridine_eic <- chromatogram(std_data, mz = uridine_mzr)
+plot(uridine_eic, col = paste0(col_sample, 80), xlim = c(100, 200))
+tmp <- chromatogram(std_data, mz = uridine_mzr[1, ], rt = c(110, 140))
+plot(tmp, col = paste0(col_sample, 80))
+legend("topright", col = col_mix, legend = names(col_mix), lty = 1)
+#' - Expect differences in mix 13. It's (validated) at 120 seconds.
+
+```
+
+# Initial data inspection
+
+```{r}
+bpc <- chromatogram(std_data, aggregationFun = "max")
+
+#' Define colors
+col_concentration <- c(low = "#FF7F00", high = "#A65628")
+col_sample <- col_concentration[sampleData(std_data)$concentration]
+
+plot(bpc, col = paste0(col_sample, 80))
+grid()
+```
+
+We filter the data set by retention time to focus on the part of the
+chromatography where compounds get actually separated.
+
+```{r}
+std_data <- filterSpectra(std_data, filterRt, c(15, 225))
+```
+
+We extract again the BPC.
+
+```{r}
+bpc <- chromatogram(std_data, aggregationFun = "max")
+plot(bpc, col = paste0(col_sample, 80))
+grid()
+legend("topright", col = col_concentration, lty = 1,
+       legend = names(col_concentration))
+```
+
+We can see differences, in particular, two high intensity abundance files have
+shifted or additional signal at around 130 seconds. We next want to quantify
+these differences.
+
+To evaluate the general similarity and differences of the different LC runs we
+next bin the BPC signal of each sample along the retention time into
+approximately 20 bins, hence aggregating signal within 10 second
+windows. Smaller windows would enable a more detailed comparison, would however
+also be affected more by eventually present retention time shifts.
+
+```{r}
+bpcb <- bin(bpc, binSize = 10)
+
+#' bin data data
+bpcmap <- lapply(bpcb, intensity) |>
+    do.call(what = rbind) |>
+    log2()
+colnames(bpcmap) <- rtime(bpcb[[1]])
+rownames(bpcmap) <- sampleData(std_data)$sample_name
+
+#' center data
+bpcmap <- scale(bpcmap, center = TRUE, scale = FALSE)
+
+pheatmap(bpcmap, cluster_cols = FALSE)
+```
+
+The two DDA samples have considerably higher signal at around 120 seconds -
+which is quite difficult to explain?
+
+Check serine.
+
+```{r}
+serine_formula <- "C3H7NO3"
+serine_mass <- calculateMass(serine_formula)
+
+serine_mz <- mass2mz(serine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
+serine_mzr <- cbind(mzmin = serine_mz - 0.01, mzmax = serine_mz + 0.01)
+
+serine_eic <- chromatogram(std_data, mz = serine_mzr)
+
+plot(serine_eic, col = paste0(col_sample, 80))
+
+```
+
+We focus on the retention time range where we have a clear signal for potential
+ions of serine:
+
+```{r}
+## serine_eic <- chromatogram(std_data, mz = serine_mzr,
+##                            rt = cbind(rep(170, 3), rep(190, 3)))
+plot(serine_eic, col = paste0(col_sample, 80), xlim = c(170, 190))
+
+```
+
+Hm, well, a bit disturbing. Seems that spiking the standards affected the
+retention of serine - we have thus retention time shift of about 5-8 seconds,
+and also the peak shape changed.
+
+Check proline.
+
+```{r}
+proline_formula <- "C5H9NO2"
+proline_mass <- calculateMass(proline_formula)
+
+proline_mz <- mass2mz(proline_mass, c("[M+H]+", "[M+NH4]+", "[M+H-CH2O2]+"))[1, ]
+proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
+
+proline_eic <- chromatogram(std_data, mz = proline_mzr)
+
+plot(proline_eic, col = paste0(col_sample, 80))
+
+```
+
+Signal is not that clear. We zoom into the region to get more information.
+
+```{r}
+## proline_eic <- chromatogram(std_data, mz = proline_mzr,
+##                             rt = cbind(rep(140, 3), rep(200, 3)))
+plot(proline_eic, col = paste0(col_sample, 80), xlim = c(140, 200))
+
+```
+
+Pretty tricky situation... not clear which signal it might be. maybe the one
+around 190 seconds?
+
+```{r}
+plot(proline_eic, col = paste0(col_sample, 80), xlim = c(185, 195))
+```
+
+If this is supposed to be proline - why does the intensity of the signal differ
+between low and high??? So, most likely this is **not** proline. What about the
+signal at around 170:
+
+```{r}
+plot(proline_eic, col = paste0(col_sample, 80), xlim = c(165, 175))
+```
+
+This seems to make more sense...
+
+
+# Data preprocessing
+
+## Chromatographic peak detection
+
+- Derive settings
+
+Peakwidth seems to be between 3-5 seconds. So we go for `peakwidth = c(2, 8)`
+
+```{r}
+cwp <- CentWaveParam(peakwidth = c(2, 8), integrate = 2, snthresh = 1)
+
+serine_eic <- findChromPeaks(serine_eic, param = cwp)
+chromPeaks(serine_eic)
+
+plot(serine_eic,
+     peakCol = paste0(col_sample[chromPeaks(serine_eic)[, "column"]], 80),
+     peakBg = paste0(col_sample[chromPeaks(serine_eic)[, "column"]], 40),
+     col = col_sample)
+```
+
+Same for proline:
+
+```{r}
+proline_eic <- findChromPeaks(proline_eic, param = cwp)
+chromPeaks(proline_eic)
+
+plot(proline_eic,
+     peakCol = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 80),
+     peakBg = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 40),
+     col = col_sample)
+plot(proline_eic,
+     peakCol = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 80),
+     peakBg = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 40),
+     col = col_sample, xlim = c(165, 185))
+```
+
+We in addition check the m/z deviation.
+
+```{r}
+serine_rtr <- cbind(rtmin = rep(175, 3), rtmax = rep(190, 3))
+
+a <- std_data |>
+    filterSpectra(filterRt, serine_rtr[1, ]) |>
+    filterSpectra(filterMzRange, serine_mzr[1, ])
+plot(a)
+```
+
+could try to use that to infer the m/z deviation for the ppm parameter.
+
+- Detect peaks.
+
+```{r}
+cwp <- CentWaveParam(peakwidth = c(2, 8),
+                     ppm = 40,
+                     snthresh = 5,
+                     integrate = 2)
+std_data <- findChromPeaks(std_data, param = cwp)
+```
+
+- Maybe some plots showing the effect.
+
+Do peak refinement.
+
+```{r}
+mnpp <- MergeNeighboringPeaksParam(expandRt = 3, expandMz = 0.002, ppm = 10)
+std_data <- refineChromPeaks(std_data, mnpp)
+```
+
+- Summary of identified peaks
+- Peak refinement
+
+## Retention time alignment
+
+- Initial correspondence: check settings. Serine might be great, because there
+  is some shift.
+
+```{r}
+grp <- sampleData(std_data)$concentration
+grp[sampleData(std_data)$mode == "DDA"] <- NA
+pdp <- PeakDensityParam(sampleGroups = grp,
+                        bw = 4,
+                        minFraction = 2/3,
+                        binSize = 0.02,
+                        ppm = 20)
+
+plotChromPeakDensity(serine_eic[1, ], pdp)
+a <- filterRt(serine_eic, c(150, 200))
+plotChromPeakDensity(a[1, ], pdp)
+
+plotChromPeakDensity(serine_eic[3, ], pdp)
+plotChromPeakDensity(a[3, ], pdp)
+
+plotChromPeakDensity(proline_eic[1, ], pdp)
+a <- filterRt(proline_eic[1, ], c(160, 200))
+plotChromPeakDensity(a[1, ], pdp)
+
+```
+
+- Settings OK because we group the rt-shifted chrom peaks into the same feature.
+
+Apply settings.
+
+```{r}
+std_data <- groupChromPeaks(std_data, pdp)
+
+pgp <- PeakGroupsParam(minFraction = 6 / 8, extraPeaks = 50, span = 0.4)
+std_data <- adjustRtime(std_data, pgp)
+
+plotAdjustedRtime(std_data)
+
+bpc_adj <- chromatogram(std_data, chromPeaks = "none", aggregationFun = "max")
+
+par(mfrow = c(2, 1))
+plot(bpc, col = paste0(col_sample, 60))
+grid()
+plot(bpc_adj, col = paste0(col_sample, 60))
+```
+
+Hm, does not seem to be particularly good. Let's extract the serine and proline
+again.
+
+```{r}
+serine_eic_adj <- chromatogram(std_data, mz = serine_mzr)
+
+par(mfrow = c(2, 1))
+plot(serine_eic[1, ], col = paste0(col_sample, 80),
+     peakType = "none", xlim = c(170, 190))
+plot(serine_eic_adj[1, ], col = paste0(col_sample, 80),
+     peakType = "none", xlim = c(170, 190))
+```
+
+Some improvement, but serine signal seems still to be different between the low
+and high concentration.
+
+```{r}
+proline_eic_adj <- chromatogram(std_data, mz = proline_mzr)
+
+par(mfrow = c(2, 1))
+plot(proline_eic[1, ], col = paste0(col_sample, 80),
+     peakType = "none", xlim = c(160, 200))
+plot(proline_eic_adj[1, ], col = paste0(col_sample, 80),
+     peakType = "none", xlim = c(160, 200))
+```
+
+Signal, including MS2 seems to be better aligned.
+
+Quantify similarity of BPC between samples.
+
+```{r}
+bpcb_adj <- bin(bpc_adj, binSize = 10)
+
+#' bin data data
+bpcmap_adj <- lapply(bpcb_adj, intensity) |>
+    do.call(what = rbind) |>
+    log2()
+colnames(bpcmap_adj) <- rtime(bpcb_adj[[1]])
+rownames(bpcmap_adj) <- sampleData(std_data)$sample_name
+
+#' center data
+bpcmap_adj <- scale(bpcmap_adj, center = TRUE, scale = FALSE)
+bpcmap_adj <- bpcmap_adj[, !is.na(colSums(bpcmap_adj))]
+
+pheatmap(bpcmap_adj, cluster_cols = FALSE)
+
+```
+
+hmmmm. worrying maybe? Maybe we could find a better mix?
+
+
+## Correspondence analysis
+
+For correspondence, use now more stringent settings for retention time
+differences.
+
+```{r}
+pdp <- PeakDensityParam(sampleGroups = grp,
+                        bw = 3,
+                        minFraction = 2/3,
+                        binSize = 0.02,
+                        ppm = 20)
+std_data <- groupChromPeaks(std_data, pdp)
+```
+
+```{r}
+serine_eic_adj <- chromatogram(std_data, mz = serine_mzr)
+
+plotChromPeakDensity(serine_eic_adj[1, ], simulate = FALSE)
+plotChromPeakDensity(serine_eic_adj[2, ], sumulate = FALSE)
+plotChromPeakDensity(serine_eic_adj[3, ], sumulate = FALSE)
+```
+
+```{r}
+proline_eic_adj <- chromatogram(std_data, mz = proline_mzr)
+
+plotChromPeakDensity(proline_eic_adj[1, ], simulate = FALSE)
+plotChromPeakDensity(proline_eic_adj[2, ], simulate = FALSE)
+tmp <- filterRt(proline_eic_adj, c(140, 170))
+plotChromPeakDensity(tmp[2, ], simulate = FALSE) # what is that?
+plotChromPeakDensity(proline_eic_adj[3, ], simulate = FALSE)
+```
+
+## Gap filling
+
+```{r}
+sum(is.na(featureValues(std_data)))
+
+std_data <- fillChromPeaks(std_data, ChromPeakAreaParam())
+sum(is.na(featureValues(std_data)))
+```
+
+Compare filled data to detected values.
+
+```{r}
+det <- featureValues(std_data, filled = FALSE)
+fil <- featureValues(std_data)
+fil[!is.na(det)] <- NA
+
+boxplot(log2(det))
+boxplot(log2(fil))
+```
+
+compared filled vs detected for low
+
+```{r}
+a <- det[, which(grp == "low")]
+b <- fil[, which(grp == "low")]
+keep <- is.na(rowSums(det))
+
+plot(rowMeans(log2(a), na.rm = TRUE)[keep],
+     rowMeans(log2(b), na.rm = TRUE)[keep],
+     xlab = "detected", ylab = "filled")
+grid()
+abline(0, 1, col = "grey")
+```
+
+Same for high
+
+```{r}
+a <- det[, which(grp == "high")]
+b <- fil[, which(grp == "high")]
+keep <- is.na(rowSums(det))
+
+plot(rowMeans(log2(a), na.rm = TRUE)[keep],
+     rowMeans(log2(b), na.rm = TRUE)[keep],
+     xlab = "detected", ylab = "filled")
+grid()
+abline(0, 1, col = "grey")
+```
+
+
+
+
+# Quantitative analysis
+
+```{r}
+fvals <- featureValues(std_data, method = "sum")
+```
+
+```{r}
+h <- rowMeans(log2(fvals)[, which(grp == "high")], na.rm = TRUE)
+l <- rowMeans(log2(fvals)[, which(grp == "low")], na.rm = TRUE)
+
+plot((h + l) / 2, h - l)
+```
+
+that's maybe way too much differences.
+
+```{r}
+tmp <- featureChromatograms(
+    std_data, features = c("FT00003", "FT00005", "FT00006"))
+plot(tmp)
+```
+
+
+- Feature abundance matrix
+- PCA, heatmap?
+- Identify features with difference in abundance
+- Extract MS2 spectra for all MS1 peaks.
+- Compare similarity between these MS2 spectra
+
+# Session information
+
+```{r}
+sessionInfo()
+```
