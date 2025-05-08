@@ -1,5 +1,5 @@
 ---
-title: "Preprocessing of LC-MS data with *xcms*"
+title: "LC-MS data processing using *xcms*"
 format:
   html:
     self-contained: true
