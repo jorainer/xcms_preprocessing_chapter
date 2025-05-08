@@ -13,3 +13,4 @@ vignettes/objects/
 /vignettes/res
 *.log
 *.h5
+data/mzML/*

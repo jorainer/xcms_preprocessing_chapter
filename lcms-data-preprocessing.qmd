@@ -25,7 +25,6 @@ and each sample was measured 3 times. In addition to a LC-MS data acquisition
 for quantification of the data, LC-MS/MS data was measured for each sample with
 a data dependent acquisition setting.
 
-
 **Note**: for now it's mostly checking properties of the data set to see what
 best to use. Later we should discuss on what to keep and include and clean the
 document up.
@@ -40,6 +39,7 @@ In this workflow a LC-MS/MS data is processed with ...
 #| message: false
 library(xcms)
 library(MsExperiment)
+library(Spectra)
 library(readxl)
 library(RColorBrewer)
 library(pheatmap)
@@ -57,11 +57,6 @@ MZML_PATH <- "data/mzML/"
 #' citrulline, serine (180)
 #' select mix...
 std_files <- std_files[grep("Mix13", std_files$mzML), ]
-
-#' Comments on the different mixes:
-#' Mix03:
-#' Mix07:
-#' Mix13:
 
 std_data <- readMsExperiment(file.path(MZML_PATH, std_files$mzML),
                              sampleData = std_files)
@@ -81,6 +76,8 @@ sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
 
 # Checking differences between mixes
 
+Just to determine which mix to best use.
+
 Comparing data from mixes 3, 7 and 13:
 - data is tricky, there are the same large differences between the low and high
   mix.
@@ -99,6 +96,8 @@ Comparing data from mixes 3, 7 and 13:
 
 # Initial data inspection
 
+- why is that suggested?
+
 ```{r}
 bpc <- chromatogram(std_data, aggregationFun = "max")
 
@@ -108,6 +107,7 @@ col_sample <- col_concentration[sampleData(std_data)$concentration]
 
 plot(bpc, col = paste0(col_sample, 80))
 grid()
+abline(v = c(15, 225), lty = 2)
 ```
 
 We filter the data set by retention time to focus on the part of the
@@ -156,7 +156,95 @@ pheatmap(bpcmap, cluster_cols = FALSE)
 The two DDA samples have considerably higher signal at around 120 seconds -
 which is quite difficult to explain?
 
-Check serine.
+Next: detailed inspection of the signal:
+- why?
+  - do a first evaluation of retention time width of ion signals
+  - ensure data is in centroid mode
+  - eventually spot issues/properties in the data that require further initial
+    processing (removing lockmass scans for Waters data, ...)
+- how?
+  - plot BPC
+  - zoom into a specific rt region in the BPC - does not have to be the highest
+    signal.
+  - extract MS1 spectrum from that region to determine the m/z of the most
+    abundant ion there.
+
+```{r}
+rtr <- c(145, 155)
+bpc_rtr <- chromatogram(std_data, rt = rtr, aggregationFun = "max")
+plot(bpc_rtr, col = paste0(col_sample, 80))
+grid()
+```
+
+- Signal is present for all samples expect the LC-MS/MS samples.
+- Extract the MS1 scan from the first sample closest to a retention time of 151
+  (seems to be the apex position).
+
+```{r}
+#' Extract all MS1 spectra from the first file
+ms1 <- std_data[1] |>
+    spectra() |>
+    filterMsLevel(1L)
+#' Get the index of the MS1 spectrum closest to RT 151
+idx <- abs(rtime(ms1) - 151) |>
+    which.min()
+#' Get this MS1 spectrum
+ms1 <- ms1[idx]
+
+```
+
+Plot the MS1 spectrum:
+
+```{r}
+plotSpectra(ms1)
+grid()
+```
+
+Get the m/z of the highest intensity peak.
+
+```{r}
+idx <- which.max(intensity(ms1)[[1]])
+mz_max <- mz(ms1)[[1]][idx]
+```
+
+We can use this m/z to specifically extract the ion chromatogram for that
+particular ion.
+
+```{r}
+eic_sel <- chromatogram(
+    std_data, rt = rtr, mz = c(mz_max - 0.01, mz_max + 0.01))
+plot(eic_sel, col = paste0(col_sample, 80))
+grid()
+```
+
+- visualize individual mass peaks in the m/z - retention time plane: evaluate
+  whether data is in centroid mode and allows to determine variance in peaks'
+  m/z along retention time axis.
+
+```{r}
+std_data_sub <- std_data[1] |>
+    filterSpectra(filterRt, rt = c(148, 153)) |>
+    filterSpectra(filterMzRange, mz = c(mz_max - 0.01, mz_max + 0.01))
+
+plot(std_data_sub)
+```
+
+We can also calculate the m/z difference for these
+
+```{r}
+mz_diff <- spectra(std_data_sub) |>
+    mz() |>
+    unlist() |>
+    diff()
+
+max(mz_diff)
+#' expressed in ppm...
+```
+
+- Use this information to determine rt width and m/z deviation.
+
+In addition: good to check for the signal of ions known/expected to be
+present. Here: check serine (could also do tryptophane)
 
 ```{r}
 serine_formula <- "C3H7NO3"
