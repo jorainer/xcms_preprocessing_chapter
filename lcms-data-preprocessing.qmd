@@ -94,6 +94,7 @@ Comparing data from mixes 3, 7 and 13:
   retention time is at 120 seconds.
 
 
+
 # Initial data inspection
 
 - why is that suggested?
@@ -242,9 +243,41 @@ max(mz_diff)
 ```
 
 - Use this information to determine rt width and m/z deviation.
+- Ideally, evaluate signal for several ions. Could also check for potentially
+  present compounds: tryptophan:
 
-In addition: good to check for the signal of ions known/expected to be
-present. Here: check serine (could also do tryptophane)
+```{r}
+trypto_formula <- "C11H12N2O2"
+trypto_mass <- calculateMass(trypto_formula)
+
+trypto_mz <- mass2mz(trypto_mass, c("[M+H]+", "[M+Na]+"))[1, ]
+trypto_mzr <- cbind(mzmin = trypto_mz - 0.01, mzmax = trypto_mz + 0.01)
+
+trypto_eic <- chromatogram(std_data, mz = trypto_mzr)
+
+plot(trypto_eic, col = paste0(col_sample, 80))
+```
+
+Signal for tryptophan ions seem to be present at a ertention time of about 150
+seconds. We thus below restrict to this retention time range.
+
+```{r}
+plot(trypto_eic, col = paste0(col_sample, 80), xlim = c(150, 160))
+
+```
+
+We can also visualize the individual mass peaks for the [M+H]+ ion in the first
+sample.
+
+```{r}
+std_data[1] |>
+    filterSpectra(filterRt, c(150, 160)) |>
+    filterSpectra(filterMzRange, trypto_mzr[1, ]) |>
+    plot()
+```
+
+
+**Note**: maybe use also serine as a *difficult* signal/example?
 
 ```{r}
 serine_formula <- "C3H7NO3"
@@ -319,7 +352,10 @@ This seems to make more sense...
 
 ## Chromatographic peak detection
 
-- Derive settings
+- Derive settings: from the rule of thumb: half of the observed peak width to
+  max double. Also, don't have too wise peak width.
+- `ppm` parameter: from above.
+- Evaluate the
 
 Peakwidth seems to be between 3-5 seconds. So we go for `peakwidth = c(2, 8)`
 
@@ -334,6 +370,9 @@ plot(serine_eic,
      peakBg = paste0(col_sample[chromPeaks(serine_eic)[, "column"]], 40),
      col = col_sample)
 ```
+
+Difference between `integrate = 1` and `integrate = 2`? Should we mention that
+or is it too much info/detail?
 
 Same for proline:
 
@@ -351,19 +390,7 @@ plot(proline_eic,
      col = col_sample, xlim = c(165, 185))
 ```
 
-We in addition check the m/z deviation.
-
-```{r}
-serine_rtr <- cbind(rtmin = rep(175, 3), rtmax = rep(190, 3))
-
-a <- std_data |>
-    filterSpectra(filterRt, serine_rtr[1, ]) |>
-    filterSpectra(filterMzRange, serine_mzr[1, ])
-plot(a)
-```
-
-could try to use that to infer the m/z deviation for the ppm parameter.
-
+- For `ppm` definition refer to the plots above.
 - Detect peaks.
 
 ```{r}
