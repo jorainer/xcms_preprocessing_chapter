@@ -2,6 +2,7 @@
 title: "Preprocessing of LC-MS data with *xcms*"
 format:
   html:
+    toc: true
     self-contained: true
 author: "Philippine Louail, Marilyn De Graeve, Johannes Rainer"
 code_folding: hide
@@ -29,6 +30,9 @@ a data dependent acquisition setting.
 best to use. Later we should discuss on what to keep and include and clean the
 document up.
 
+**Note**: we should focus on simple things, no fancy, new stuff. Just explaining
+how LC-MS data can be investigated and preprocessing can be done.
+
 # Dataset Description
 
 In this workflow a LC-MS/MS data is processed with ...
@@ -49,6 +53,11 @@ library(MetaboCoreUtils)
 - Load the xlsx file with the sample information
 - **Note**: we would ideally need to submit this data to MetaboLights. TODO:
   prepare the files to submit.
+- **Note**: for the book chapter it might actually be better to describe how to
+  create and format a *sample* xlsx sheet to import the data - for the
+  reproducible workflow (this document) it would be better to import from
+  MetaboLights.
+
 
 ```{r}
 std_spiked <- read_xlsx("data/standards.xlsx") |> as.data.frame()
@@ -75,31 +84,14 @@ sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
 ```
 
 
-# Checking differences between mixes
-
-Just some evaluation of data from different batches to determine which best to
-use. This section will be removed.
-
-Comparing data from mixes 3, 7 and 13:
-- data is tricky, there are the same large differences between the low and high
-  mix.
-- **serine**: the rt of serine depends on the spiking with different
-  concentration - even independently if serine itself was spiked. Serine
-  differences are observed in mix 07 (which is expected), but also, to a smaller
-  extend in mix 03, where it was **not** spiked.
-- **proline**: signal seems to be at 170 seconds. that signal is not different
-  between samples, which fits expectations. This also matches the results from
-  mix 09.
-- **guanine**: retention time is constant. [M+H-H2O]+ signal is NOT guanine.
-  mix 03 shows very large difference. also mix 07 to some extend.
-- **uridine**: differences present in mix 13 (as expected). The (validated)
-  retention time is at 120 seconds.
-
-
-
 # Initial data inspection
 
-- why is that suggested?
+- Describe why we should do that.
+- Include:
+  - BPC and eventually TIC.
+  - Zoom into a RT region, extract MS1 spectrum, identify highest m/z -> extract
+    EIC to inspect signal.
+  - Repeat for compounds that could be present in the sample.
 
 ```{r}
 bpc <- chromatogram(std_data, aggregationFun = "max")
@@ -354,8 +346,9 @@ This seems to make more sense...
 
 ## Chromatographic peak detection
 
-- Derive settings: from the rule of thumb: half of the observed peak width to
-  max double. Also, don't have too wise peak width.
+- Derive settings: use the information from previous section. `peakwidth`: from
+  the rule of thumb: half of the observed peak width to max double. Also, don't
+  have too wise peak width.
 - `ppm` parameter: from above.
 - CentWave works with most LC-setups.
 
@@ -670,6 +663,7 @@ plot(tmp)
 
 
 - Feature abundance matrix
+- -> `SummarizedExperiment`: why is that a good data container.
 - PCA, heatmap?
 - Identify features with difference in abundance
 - Extract MS2 spectra for all MS1 peaks.
