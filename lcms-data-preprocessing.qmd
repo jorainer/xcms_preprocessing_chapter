@@ -6,7 +6,7 @@ format:
     self-contained: true
 author: "Philippine Louail, Marilyn De Graeve, Johannes Rainer"
 code_folding: hide
-editor: visual
+editor: source
 date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
 ---
 
@@ -17,30 +17,20 @@ library(BiocStyle)
 knitr::opts_knit$set(root.dir = './')
 ```
 
-# Introduction
+
+# Introduction 
+## Dataset description
 
 This document outlines the preprocessing steps for an untargeted LC-MS/MS
 metabolomics dataset. The samples consist of pooled human serum, each spiked
-with known compounds at two different concentrations. Each sample was measured
-three times to ensure reproducibility.
+with known compounds at two different concentrations. These two different 
+concentration are categorized as high vs low. Each sample was measured three 
+times to ensure reproducibility.
 
 Alongside the LC-MS data used for quantification, additional LC-MS/MS data was
 acquired for each sample using a data-dependent acquisition (DDA) method.
 
-**Notes**: I remember we discussed that maybe it's unnecessary to precise the
-samples are standards ? but definitely mention that it was measure 3 times
-
-**Note**: for now it's mostly checking properties of the data set to see what
-best to use. Later we should discuss on what to keep and include and clean the
-document up.
-
-**Note**: we should focus on simple things, no fancy, new stuff. Just
-explaining how LC-MS data can be investigated and preprocessing can be done.
-
-# Dataset Description
-
-**notes**: I would rename the title to something such as "Dataset analysis
-description"
+## Data analysis description
 
 In this workflow a LC-MS/MS data is processed with ...
 
@@ -76,12 +66,14 @@ library(MetaboCoreUtils)
 ```
 
 -   Load the xlsx file with the sample information
--   **Note**: we would ideally need to submit this data to MetaboLights. 
-    TODO: prepare the files to submit.
+-   **Note**: we would ideally need to submit this data to MetaboLights. TODO:
+    prepare the files to submit.
 -   **Note**: for the book chapter it might actually be better to describe how
     to create and format a *sample* xlsx sheet to import the data - for the
     reproducible workflow (this document) it would be better to import from
     MetaboLights.
+      - add some definition on the columns info (collision energy, 
+      concentration ,..)
 
 ```{r}
 std_spiked <- read_xlsx("data/standards.xlsx") |> as.data.frame()
@@ -100,11 +92,8 @@ std_data <- readMsExperiment(file.path(MZML_PATH, std_files$mzML),
 The current data set consists of the files and samples listed in the table
 below.
 
-**Notes**: should we add some explanation on the columns info ? 
-
 ```{r update-phenodata}
 #| tbl-cap: "Data files and samples."
-
 sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
                          "concentration")] |>
     kable(format = "pipe")
@@ -112,9 +101,8 @@ sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
 
 In order to make the analysis more efficient we will set up parallel processing
 and using 2 cores. This will allows to process 2 samples at a time. The same
-number need to thenbe input in the parameter `chunkSize =` during the main 
-preprocessing steps.
-For more info see xxx:
+number need to thenbe input in the parameter `chunkSize =` during the main
+preprocessing steps. For more info see xxx:
 
 ```{r}
 cores <- 2
@@ -126,16 +114,11 @@ if (.Platform$OS.type == "unix") {
 }
 ```
 
-
-
 # Initial data inspection
 
+## Overview of full data
+
 -   Describe why we should do that.
--   Include:
-    -   BPC and eventually TIC.
-    -   Zoom into a RT region, extract MS1 spectrum, identify highest m/z -\>
-        extract EIC to inspect signal.
-    -   Repeat for compounds that could be present in the sample.
 
 ```{r}
 bpc <- chromatogram(std_data, aggregationFun = "max")
@@ -167,195 +150,17 @@ legend("topright", col = col_concentration, lty = 1,
 ```
 
 We can see differences, in particular, two high intensity abundance files have
-shifted or additional signal at around 130 seconds. We next want to quantify
-these differences.
+shifted or additional signal at around 130 seconds. 
 
-To evaluate the general similarity and differences of the different LC runs we
-next bin the BPC signal of each sample along the retention time into
-approximately 20 bins, hence aggregating signal within 10 second windows.
-Smaller windows would enable a more detailed comparison, would however also be
-affected more by eventually present retention time shifts.
 
-**Notes** are we removing this whole part below ? i do like that it shows the 
-commands to epxlore the data but it does deviate from a "basic analysis".
-Instead: 
-- introduce that "we show above how to get an overview of the chromatographic
-  data, now we will zoom in on specific mz and rt areas."
-- we show how to extrac the eic  of a "known" compound : thryptophan, that is shown
-  already below.
-- check if data properly centroided 
-- estimate the `ppm=` parameter for peak picking. 
+## Extracting EICs for known compounds
 
-```{r}
-bpcb <- Spectra::bin(bpc, binSize = 10)
-
-#' bin data data
-bpcmap <- lapply(bpcb, intensity) |>
-    do.call(what = rbind) |>
-    log2()
-colnames(bpcmap) <- rtime(bpcb[[1]])
-rownames(bpcmap) <- sampleData(std_data)$sample_name
-
-#' center data
-bpcmap <- scale(bpcmap, center = TRUE, scale = FALSE)
-
-pheatmap(bpcmap, cluster_cols = FALSE)
-```
-
-The two DDA samples have considerably higher signal at around 120 seconds -
-which is quite difficult to explain?
-
-Next: detailed inspection of the signal: - why? - do a first evaluation of
-retention time width of ion signals - ensure data is in centroid mode -
-eventually spot issues/properties in the data that require further initial
-processing (removing lockmass scans for Waters data, ...) - how? - plot BPC -
-zoom into a specific rt region in the BPC - does not have to be the highest
-signal. - extract MS1 spectrum from that region to determine the m/z of the
-most abundant ion there.
-
-```{r}
-rtr <- c(145, 155)
-bpc_rtr <- chromatogram(std_data, rt = rtr, aggregationFun = "max")
-plot(bpc_rtr, col = paste0(col_sample, 80))
-grid()
-```
-
--   Signal is present for all samples expect the LC-MS/MS samples.
--   Extract the MS1 scan from the first sample closest to a retention time of
-    151 (seems to be the apex position).
-
-```{r}
-#' Extract all MS1 spectra from the first file
-ms1 <- std_data[1] |>
-    spectra() |>
-    filterMsLevel(1L)
-#' Get the index of the MS1 spectrum closest to RT 151
-idx <- abs(rtime(ms1) - 151) |>
-    which.min()
-#' Get this MS1 spectrum
-ms1 <- ms1[idx]
-
-```
-
-Plot the MS1 spectrum:
-
-```{r}
-plotSpectra(ms1)
-grid()
-```
-
-Get the m/z of the highest intensity peak.
-
-```{r}
-idx <- which.max(intensity(ms1)[[1]])
-mz_max <- mz(ms1)[[1]][idx]
-```
-
-We can use this m/z to specifically extract the ion chromatogram for that
-particular ion.
-
-```{r}
-eic_sel <- chromatogram(
-    std_data, rt = rtr, mz = c(mz_max - 0.01, mz_max + 0.01))
-plot(eic_sel, col = paste0(col_sample, 80))
-grid()
-```
-
--   visualize individual mass peaks in the m/z - retention time plane: evaluate
-    whether data is in centroid mode and allows to determine variance in peaks'
-    m/z along retention time axis.
-
-**Notes**:  I think checking if the daa is in centroid mode is important ? 
-should we keep that ? 
-
-```{r}
-std_data_sub <- std_data[1] |>
-    filterSpectra(filterRt, rt = c(148, 153)) |>
-    filterSpectra(filterMzRange, mz = c(mz_max - 0.01, mz_max + 0.01))
-
-plot(std_data_sub)
-```
-
-We can also calculate the m/z difference for these
-
-```{r}
-mz_diff <- spectra(std_data_sub) |>
-    mz() |>
-    unlist() |>
-    diff()
-
-max(mz_diff)
-#' expressed in ppm...
-```
-
--   Use this information to determine rt width and m/z deviation.
--   Ideally, evaluate signal for several ions. Could also check for potentially
-    present compounds: tryptophan:
-    
-**Notes**: I would show directly with the adjusted rt and skip the one below. 
-
-```{r}
-trypto_formula <- "C11H12N2O2"
-trypto_mass <- calculateMass(trypto_formula)
-
-trypto_mz <- mass2mz(trypto_mass, c("[M+H]+", "[M+Na]+"))[1, ]
-trypto_mzr <- cbind(mzmin = trypto_mz - 0.01, mzmax = trypto_mz + 0.01)
-
-trypto_eic <- chromatogram(std_data, mz = trypto_mzr)
-
-plot(trypto_eic, col = paste0(col_sample, 80))
-```
-
-Signal for tryptophan ions seem to be present at a retention time of about 150
-seconds. We thus below restrict to this retention time range.
-
-```{r}
-plot(trypto_eic, col = paste0(col_sample, 80), xlim = c(150, 160))
-```
-
-We can also visualize the individual mass peaks for the \[M+H\]+ ion in the
-first sample.
-
-**Notes**: only show the plot below once !
-
-```{r}
-std_data[1] |>
-    filterSpectra(filterRt, c(150, 160)) |>
-    filterSpectra(filterMzRange, trypto_mzr[1, ]) |>
-    plot()
-```
-
-**Note**: maybe use also serine as a *difficult* signal/example?
-          - phili: I would remove the serine and show only proline as a second 
-            example. and same as above, directly plot with the right RT range. 
-```{r}
-serine_formula <- "C3H7NO3"
-serine_mass <- calculateMass(serine_formula)
-
-serine_mz <- mass2mz(serine_mass, c("[M+H]+", "[M+Na]+", "[M+H-H2O]+"))[1, ]
-serine_mzr <- cbind(mzmin = serine_mz - 0.01, mzmax = serine_mz + 0.01)
-
-serine_eic <- chromatogram(std_data, mz = serine_mzr)
-
-plot(serine_eic, col = paste0(col_sample, 80))
-
-```
-
-We focus on the retention time range where we have a clear signal for potential
-ions of serine:
-
-```{r}
-## serine_eic <- chromatogram(std_data, mz = serine_mzr,
-##                            rt = cbind(rep(170, 3), rep(190, 3)))
-plot(serine_eic, col = paste0(col_sample, 80), xlim = c(170, 190))
-
-```
-
-Hm, well, a bit disturbing. Seems that spiking the standards affected the
-retention of serine - we have thus retention time shift of about 5-8 seconds,
-and also the peak shape changed.
-
-Check proline.
+- introduce that "we show above how to get an overview of the chromatographic 
+  data, now we will zoom in on specific mz and rt areas." 
+- we show how to extract the eic of a "known" compound : proline
+  - precise that user should: approx 10 variable compounds 
+  (eg AA, more hydrophobic, bigger, small), either known or unknown compound
+  - say that this also allows us to estimate parameters for peak detection
 
 ```{r}
 proline_formula <- "C5H9NO2"
@@ -367,16 +172,12 @@ proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
 proline_eic <- chromatogram(std_data, mz = proline_mzr)
 
 plot(proline_eic, col = paste0(col_sample, 80))
-
 ```
 
 Signal is not that clear. We zoom into the region to get more information.
 
 ```{r}
-## proline_eic <- chromatogram(std_data, mz = proline_mzr,
-##                             rt = cbind(rep(140, 3), rep(200, 3)))
 plot(proline_eic, col = paste0(col_sample, 80), xlim = c(140, 200))
-
 ```
 
 Pretty tricky situation... not clear which signal it might be. maybe the one
@@ -386,7 +187,9 @@ around 190 seconds?
 plot(proline_eic, col = paste0(col_sample, 80), xlim = c(185, 195))
 ```
 
-If this is supposed to be proline - why does the intensity of the signal differ
+If this is supposed to be proline 
+
+- why does the intensity of the signal differ
 between low and high??? So, most likely this is **not** proline. What about the
 signal at around 170:
 
@@ -395,6 +198,45 @@ plot(proline_eic, col = paste0(col_sample, 80), xlim = c(165, 175))
 ```
 
 This seems to make more sense...
+**Notes**: I would justify the results above to subset the `proline_eic` 
+vairable to only samples where we see the peaks. 
+ALso i would keep the explanation of the 2 peaks and discuss it with the `bw`
+param later down. even if they are far apart it still can be used i think. 
+
+
+We can also visualize the individual mass peaks for the \[M+H\]+ ion in the
+first sample.
+
+- check if data properly centroided
+
+```{r}
+std_data_sub <- std_data[1] |>
+    filterSpectra(filterRt, c(167, 172)) |>
+    filterSpectra(filterMzRange, proline_mzr[1, ])
+
+plot(std_data_sub)
+```
+
+Above we visualize individual mass peaks in the m/z - retention time plane: evaluate
+  whether data is in centroid mode and allows to determine variance in peaks'
+  m/z along retention time axis.
+
+ 
+
+
+```{r}
+mz_diff <- spectra(std_data_sub) |>
+    mz() |>
+    unlist() |>
+    diff()
+
+max(mz_diff)
+#' expressed in ppm...
+```
+
+-   Use this information to determine rt width and m/z deviation. e.g. `ppm=` �
+    parameter for peak picking.
+
 
 # Data preprocessing
 
@@ -408,85 +250,42 @@ This seems to make more sense...
 
 Peakwidth seems to be between 3-5 seconds. So we go for `peakwidth = c(2, 8)`
 
-**Notes**: same here i think we need to restrict the RT range, it is not super 
-visible otherwise
-
-```{r}
-cwp <- CentWaveParam(peakwidth = c(2, 8), integrate = 2, snthresh = 1)
-# 
-# serine_eic <- findChromPeaks(serine_eic, param = cwp)
-# chromPeaks(serine_eic)
-# 
-# plot(serine_eic,
-#      peakCol = paste0(col_sample[chromPeaks(serine_eic)[, "column"]], 80),
-#      peakBg = paste0(col_sample[chromPeaks(serine_eic)[, "column"]], 40),
-#      col = col_sample)
-```
-
 Difference between `integrate = 1` and `integrate = 2`? Should we mention that
-or is it too much info/detail?
-- We should just precise that we use = 2 because guassian-ish shape.
+or is it too much info/detail? 
+
+- We should just precise that we use = 2 because gaussian-ish shape.
+
+- mention low snstresth
 
 Same for proline:
 
 ```{r}
+cwp <- CentWaveParam(peakwidth = c(2, 8), integrate = 2, snthresh = 1) 
+
 proline_eic <- findChromPeaks(proline_eic, param = cwp)
 chromPeaks(proline_eic)
 
-# plot(proline_eic,
-#      peakCol = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 80),
-#      peakBg = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 40),
-#      col = col_sample)
 plot(proline_eic,
      peakCol = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 80),
      peakBg = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 40),
-     col = col_sample, xlim = c(165, 185))
+     col = col_sample, xlim = c(165, 180))
 ```
 
-```{r}
-trypto_eic <- findChromPeaks(trypto_eic, param = cwp)
-chromPeaks(trypto_eic)
-
-# plot(trypto_eic,
-#      peakCol = paste0(col_sample[chromPeaks(trypto_eic)[, "column"]], 80),
-#      peakBg = paste0(col_sample[chromPeaks(trypto_eic)[, "column"]], 40),
-#      col = col_sample)
-plot(trypto_eic,
-     peakCol = paste0(col_sample[chromPeaks(trypto_eic)[, "column"]], 80),
-     peakBg = paste0(col_sample[chromPeaks(trypto_eic)[, "column"]], 40),
-     col = col_sample, xlim = c(145, 170))
-```
-
--   For `ppm` definition refer to the plots above.
--   Detect peaks.
+-  Explain why we use `snthresh = 5` instead of the default `snthresh = 10`.
+    -   Because we have low intensity peaks, and we want to detect them.
 
 ```{r}
 cwp <- CentWaveParam(peakwidth = c(2, 8),
                      ppm = 40,
-                     snthresh = 5,  ## need to eplxain why we don't use the default (10)
+                     snthresh = 5,
                      integrate = 2)
 std_data <- findChromPeaks(std_data, param = cwp, chunkSize = cores)
 ```
 
-Do peak refinement. Explain and show why? Or just mention in text that it is
-suggested.
-**Notes**: just mention that artifact cna be created, refinment would fix that.
-no plots. 
+Do peak refinement. Just mention in text that it is
+suggested.because artifact artifact can be created, refinement
+would fix that. 
 
-A possible example:
-
-```{r}
-# mzr <- c(943.5, 943.65)
-# rtr <- c(135, 150)
-# 
-# chr <- chromatogram(std_data[3], mz = mzr, rt = rtr)
-# chromPeaks(chr)
-# plot(chr)
-```
-
--   overlapping peaks in rt dimension: note that m/z ranges are not
-    overlapping! From the into it looks mostly that there is some low intensity
-    signal that is also detected.
 -   Performing peak merging.
 
 ```{r}
@@ -495,40 +294,26 @@ mnpp <- MergeNeighboringPeaksParam(expandRt = 3, expandMz = 0.002, ppm = 10,
 std_data <- refineChromPeaks(std_data, mnpp, chunkSize = cores)
 ```
 
-Check signal
-
-```{r}
-# chr <- chromatogram(std_data[3], mz = mzr, rt = rtr)
-# chromPeaks(chr)
-# 
-# plot(chr)
-```
-
 -   Summary of identified peaks:
     -   number of peaks per sample.
     -   quantiles of retention time widths, m/z widths.
-    
+
 ```{r}
 #' Summary of identified peaks
 data.frame(sample_name = sampleData(std_data)$sample_name,
            peak_count = as.integer(table(chromPeaks(std_data)[, "sample"]))) |>
   t() |>
   kable(format = "pipe")
-
-## Amount of merged peaks
-chromPeakData(std_data)$merged |>
-                      table()
 ```
-
 
 ## Retention time alignment
 
 -   Initial correspondence: check settings. Serine might be great, because
     there is some shift.
-    - describe `bw` parameter: bandwidth for the peak density estimation. this 
-    can be looser in the initial correspondence step for alignment. 
-    
-**Notes** Proline is a good example. 
+    -   describe `bw` parameter: bandwidth for the peak density estimation.
+        this can be looser in the initial correspondence step for alignment.
+
+**Notes** Proline is a good example.
 
 ```{r}
 grp <- sampleData(std_data)$concentration
@@ -539,17 +324,8 @@ pdp <- PeakDensityParam(sampleGroups = grp,
                         binSize = 0.02,
                         ppm = 20)
 
-# plotChromPeakDensity(serine_eic[1, ], pdp)
-# a <- filterRt(serine_eic, c(150, 200))
-# plotChromPeakDensity(a[1, ], pdp)
-# 
-# plotChromPeakDensity(serine_eic[3, ], pdp)
-# plotChromPeakDensity(a[3, ], pdp)
-
-plotChromPeakDensity(proline_eic[1, ], pdp)
 a <- filterRt(proline_eic[1, ], c(160, 200))
 plotChromPeakDensity(a[1, ], pdp)
-
 ```
 
 -   For retention time alignment the grouping of chrom peaks to features does
@@ -563,7 +339,7 @@ Apply settings.
 
 ```{r}
 #' Initial correspondence
-std_data <- groupChromPeaks(std_data, pdp, chunkSize = cores)
+std_data <- groupChromPeaks(std_data, pdp)
 ```
 
 -   Alignment. Explain parameter `span`... `extraPeaks` and `minFraction` used
@@ -586,24 +362,13 @@ grid()
 ```
 
 Hm, does not seem to be particularly good. Let's extract the serine and proline
-again.
- - we can describe that is seem to be working up until 180s but after that not really.
-   - what could be the potential steps to fix this (finding anchor peaks in that area)
-   but i would live it at that. 
- - then check in proline example. 
+again. 
 
-```{r}
-# serine_eic_adj <- chromatogram(std_data, mz = serine_mzr)
-# 
-# par(mfrow = c(2, 1))
-# plot(serine_eic[1, ], col = paste0(col_sample, 80),
-#      peakType = "none", xlim = c(170, 190))
-# plot(serine_eic_adj[1, ], col = paste0(col_sample, 80),
-#      peakType = "none", xlim = c(170, 190))
-```
-
-Some improvement, but serine signal seems still to be different between the low
-and high concentration.
+- we can describe that is seem to be working up until 180s but after
+  that not really. 
+- what could be the potential steps to fix this (finding anchor peaks in that 
+  area) but i would live it at that. 
+  - then check in proline example.
 
 ```{r}
 proline_eic_adj <- chromatogram(std_data, mz = proline_mzr)
@@ -617,36 +382,26 @@ plot(proline_eic_adj[1, ], col = paste0(col_sample, 80),
 
 Signal, including MS2 seems to be better aligned.
 
-Quantify similarity of BPC between samples.
-
-**Notes**: I would remove that.
+We then apply these retention time.
 
 ```{r}
-# bpcb_adj <- Spectra::bin(bpc_adj, binSize = 10)
-# 
-# #' bin data data
-# bpcmap_adj <- lapply(bpcb_adj, intensity) |>
-#     do.call(what = rbind) |>
-#     log2()
-# colnames(bpcmap_adj) <- rtime(bpcb_adj[[1]])
-# rownames(bpcmap_adj) <- sampleData(std_data)$sample_name
-# 
-# #' center data
-# bpcmap_adj <- scale(bpcmap_adj, center = TRUE, scale = FALSE)
-# bpcmap_adj <- bpcmap_adj[, !is.na(colSums(bpcmap_adj))]
-# 
-# pheatmap(bpcmap_adj, cluster_cols = FALSE)
-
+std_data <- applyAdjustedRtime(std_data)
 ```
 
-hmmmm. worrying maybe? Maybe we could find a better mix?
+
+Quantify similarity of BPC between samples.
 
 ## Correspondence analysis
 
 For correspondence, use now more stringent settings for retention time
-differences.
-- mention `bw` here again, and that it should be stricter than in the alignment 
-step. e.g. because we expect the peaks of one featue to be closer to eachother.
+differences. 
+
+- mention `bw` here again, and that it should be stricter than in
+the alignment step. e.g. because we expect the peaks of one feature to be closer
+to eachother.
+
+-   explain we are testing the new parameters below
+-   explain the `simulate` parameter.
 
 ```{r}
 pdp <- PeakDensityParam(sampleGroups = grp,
@@ -654,30 +409,18 @@ pdp <- PeakDensityParam(sampleGroups = grp,
                         minFraction = 2/3,
                         binSize = 0.02,
                         ppm = 20)
-std_data <- groupChromPeaks(std_data, pdp)
-```
 
-```{r}
-# serine_eic_adj <- chromatogram(std_data, mz = serine_mzr)
-# 
-# plotChromPeakDensity(serine_eic_adj[1, ], simulate = FALSE)
-# plotChromPeakDensity(serine_eic_adj[2, ], simulate = FALSE)
-# plotChromPeakDensity(serine_eic_adj[3, ], simulate = FALSE)
-```
-
-- explain we are testing the new parameters below
- - explain the `simulate` parameter.
-
-```{r}
 proline_eic_adj <- chromatogram(std_data, mz = proline_mzr, rt =
                                   cbind(rep(150, 3), rep(200, 3)))
 
 plotChromPeakDensity(proline_eic_adj[1, ], simulate = FALSE)
-# plotChromPeakDensity(proline_eic_adj[2, ], simulate = FALSE)
-# tmp <- filterRt(proline_eic_adj, c(140, 170))
-# plotChromPeakDensity(tmp[2, ], simulate = FALSE) # what is that?
-# plotChromPeakDensity(proline_eic_adj[3, ], simulate = FALSE)
 ```
+Nice grouping so we apply to full data:
+
+```{r}
+std_data <- groupChromPeaks(std_data, pdp)
+```
+
 
 ## Gap filling
 
@@ -699,7 +442,9 @@ boxplot(log2(det))
 boxplot(log2(fil))
 ```
 
-**Notes**: explain what we expect. why we xompare low vs low and high vs high.
+**Notes**: explain what we expect. why we compare low vs low and high vs high.
+low: expect similar amount of filled values.
+high : ? 
 
 compared filled vs detected for low
 
@@ -729,41 +474,85 @@ grid()
 abline(0, 1, col = "grey")
 ```
 
-# Quantitative analysis
+# Post processing
 
-**Notes**: i'm not sure what the 2 plots below are importnant for ? 
-I think we need to decide what final steps we want to include (more below)
+## CV- based filtering
 
 ```{r}
-fvals <- featureValues(std_data, method = "sum")
+idx_low <- grp == "low"
+
+res_cv <- data.frame(low = rowRsd(featureValues(std_data)[, idx_low]), 
+                     high = rowRsd(featureValues(std_data)[, !idx_low]))
+
+dens <- apply(res_cv, 2, density, na.rm = TRUE)
+
+plot(NA, xlim=range(sapply(dens, "[[", "x")), ylim=range(sapply(dens, "[[", "y")),
+     xlab = "X", ylab = "Density", main = "Density Curves with Fill")
+cols <- rainbow(length(dens))
+mapply(function(d, col) {
+  polygon(d$x, d$y, col=adjustcolor(col, alpha.f=0.5), border=col)
+}, dens, cols)
+abline(v = 0.3, col = "red", lty = 2, lwd = 2)
+legend("topright", legend=names(dens), fill=adjustcolor(cols, alpha.f=0.5))
+```
+oh that would remove a lot of features.
+
+We filter based on the Qcs samples. because in our dataset we have 2 types of 
+QCs we will do this in 2 steps (???)
+
+```{r}
+std_data_filt <- filterFeatures(std_data, RsdFilter(qcIndex = idx_low, 
+                                                   threshold = 0.3))
+
+std_data_filt <- filterFeatures(std_data_filt, RsdFilter(qcIndex = !idx_low, 
+                                                   threshold = 0.3))
+```
+**Notes**: Idk if you want to keep that. as you want !
+Also there is a MissingValueFilter that could be nice here ? especially because
+there is SO many features.
+Maybe mention that usually we would run the CV one after normalisation no ?
+
+# Data export
+
+-  `SummarizedExperiment`: why is that a good data container.
+
+```{r}
+#' Extract results as a SummarizedExperiment
+res <- quantify(std_data, method = "sum", filled = FALSE)
+res
+```
+
+
+```{r}
+library(SummarizedExperiment)
+assays(res)$raw_filled <- featureValues(std_data, method = "sum",
+                                        filled = TRUE )
+
+#' Different assay in the SummarizedExperiment object
+assayNames(res)
 ```
 
 ```{r}
-h <- rowMeans(log2(fvals)[, which(grp == "high")], na.rm = TRUE)
-l <- rowMeans(log2(fvals)[, which(grp == "low")], na.rm = TRUE)
-
-plot((h + l) / 2, h - l)
+assay(res, "raw_filled") |> head()
 ```
 
-that's maybe way too much differences.
+- Feature abundance matrix into xlsx
 
 ```{r}
-tmp <- featureChromatograms(
-    std_data, features = c("FT00003", "FT00005", "FT00006"))
-plot(tmp)
+write.csv (assay(res, "raw_filled"),
+          file = "data/standards_abundance.csv",
+          row.names = TRUE)
 ```
 
--   Feature abundance matrix
--   -\> `SummarizedExperiment`: why is that a good data container.
--   PCA, heatmap?
-    - yes PCA, heatmap idk. 
--   Identify features with difference in abundance
-    - out of scope ? can refer to Metabonaut
--   Extract MS2 spectra for all MS1 peaks.
-    - i would say maybe we do that actually. export as mgf ? 
--   Compare similarity between these MS2 spectra
-  - **notes**: we don't do that one right ? it's beyond scope no. 
-- filtering ? based on RSD ? 
+- MS2 spectra for all MS1 peaks: can be used as input into many software
+
+```{r}
+sp <- chromPeakSpectra(std_data)
+
+library(MsBackendMgf)
+export(sp, MsBackendMgf(), file = "std_spectra.mgf")
+```
+
 
 # Session information
 
