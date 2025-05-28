@@ -413,7 +413,7 @@ pdp <- PeakDensityParam(sampleGroups = grp,
 proline_eic_adj <- chromatogram(std_data, mz = proline_mzr, rt =
                                   cbind(rep(150, 3), rep(200, 3)))
 
-plotChromPeakDensity(proline_eic_adj[1, ], simulate = FALSE)
+plotChromPeakDensity(proline_eic_adj[1, ], param= pdp,  simulate = FALSE)
 ```
 Nice grouping so we apply to full data:
 
