@@ -14,3 +14,5 @@ vignettes/objects/
 *.log
 *.h5
 data/mzML/*
+*.csv
+*.mgf
