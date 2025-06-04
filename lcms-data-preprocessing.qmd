@@ -107,23 +107,24 @@ if (.Platform$OS.type == "unix") {
 
 ```{r}
 #' Import sample file
-std_files <- read_xlsx("data/standards_mzml.xlsx") |> as.data.frame()
+sample_data <- read_xlsx("data/standards_mzml.xlsx") |> as.data.frame()
 ```
 
-4) Create a data representation for the experiment. `readMsExperiment()` takes
-   the names of the data files (including the path to the directory where they
-   are stored - configured below using the `MZML_PATH` variable) and a
-   `data.frame` with the sample information for the respective data files as
-   input. The resulting `MsExperiment` object (variable `std_data`) contains a
-   reference to the MS data files and the sample information.
+4) Create a *data representation* for the experiment. The `readMsExperiment()`
+   function takes the names of the data files (including the path to the
+   directory where they are stored - configured below using the `MZML_PATH`
+   variable) and a `data.frame` with the sample information for the respective
+   data files as input. The resulting `MsExperiment` object (variable
+   `sample_data`) contains a reference to the MS data files and the sample
+   information.
 
 ```{r}
 #' Define the path to the directory where the data files can be found
 MZML_PATH <- file.path("data/mzML/")
 
 #' Linking the raw data to its respective metadata.
-std_data <- readMsExperiment(file.path(MZML_PATH, std_files$mzML),
-                             sampleData = std_files)
+std_data <- readMsExperiment(file.path(MZML_PATH, sample_data$mzML),
+                             sampleData = sample_data)
 ```
 
 Sample information can be extracted using the `sampleData()` function:
@@ -150,11 +151,19 @@ col_sample <- col_concentration[sampleData(std_data)$concentration]
 
 ## Overview of full data
 
--   Describe why we should do that.
+-   Describe why we should do that...
+
+
+1) Create a base peak chromatogram (BPC) of the full data set and plot it. With
+   parameter `aggregationFun = "max"` the maximum intensity per spectrum is
+   reported, while setting `aggregationFun = "sum"` would sum-up all intensities
+   per spectrum, hence generating a total ion chromatogram (TIC).
 
 ```{r}
-bpc <- chromatogram(std_data, aggregationFun = "max")
+#' Create a BPC
+bpc <- chromatogram(std_data, aggregationFun = "max", chunkSize = cores)
 
+#' Plot the BPC
 plot(bpc, col = paste0(col_sample, 80))
 grid()
 abline(v = c(15, 225), lty = 2)
@@ -162,21 +171,19 @@ legend("topright", col = col_concentration, lty = 1,
        legend = names(col_concentration))
 ```
 
-We filter the data set by retention time to focus on the part of the
-chromatography where compounds get actually separated.
+2) Filter the data set by retention time. Select the retention time range
+   containing clear signal (@Marilyn: maybe there is a better way to describe
+   this? would like to restrict the analysis to the part of the chromatogram
+   where separation/retention is actually happening). This selection could be
+   further solidified by evaluating the retention times of known compounds.
 
 ```{r}
 std_data <- filterSpectra(std_data, filterRt, c(15, 225))
 ```
 
-We extract again the BPC.
-
-```{r}
+```{r, echo = FALSE}
+#' Silently extract the BPC again - for reference later.
 bpc <- chromatogram(std_data, aggregationFun = "max")
-plot(bpc, col = paste0(col_sample, 80))
-grid()
-legend("topright", col = col_concentration, lty = 1,
-       legend = names(col_concentration))
 ```
 
 
