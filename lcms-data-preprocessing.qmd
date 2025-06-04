@@ -4,7 +4,7 @@ format:
   html:
     toc: true
     self-contained: true
-author: "Philippine Louail, Marilyn De Graeve, Johannes Rainer"
+author: "Marilyn De Graeve, Philippine Louail, Johannes Rainer"
 code_folding: hide
 editor: source
 date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
@@ -18,13 +18,14 @@ knitr::opts_knit$set(root.dir = './')
 ```
 
 
-# Introduction 
+# Introduction
+
 ## Dataset description
 
 This document outlines the preprocessing steps for an untargeted LC-MS/MS
 metabolomics dataset. The samples consist of pooled human serum, each spiked
-with known compounds at two different concentrations. These two different 
-concentration are categorized as high vs low. Each sample was measured three 
+with known compounds at two different concentrations. These two different
+concentration are categorized as high vs low. Each sample was measured three
 times to ensure reproducibility.
 
 Alongside the LC-MS data used for quantification, additional LC-MS/MS data was
@@ -32,27 +33,33 @@ acquired for each sample using a data-dependent acquisition (DDA) method.
 
 ## Data analysis description
 
-In this workflow a LC-MS/MS data is processed with ...
-
 This workflow processes LC-MS/MS data using a combination of R packages
 designed for metabolomics analysis.
 
--   `Spectra` handles the raw mass spectrometry data.
+-   *Spectra* handles the raw mass spectrometry data.
 
--   `MsExperiment` manages the experimental design and links sample metadata
+-   *MsExperiment* manages the experimental design and links sample metadata
     with the raw data.
 
--   `xcms` performs the preprocessing steps, such as peak detection, alignment,
-    and grouping.
+-   *xcms* performs the preprocessing steps, such as peak detection, alignment,
+    and grouping. [ref to xcms preprint]
 
 -   Additional packages are used for plotting, loading data tables, and utility
     functions.
 
-**note**: idk how references work for books but we could link to the xcms
-preprint, it will be out by the time this is submitted. each preprocessing step
-is handled by the xcms package
+The workflow is implemented as a *quarto* document... [TODO for jo: add some
+information description of quarto, reproducible documents, literate
+programming, advantage of using that system to build reproducible, data set
+specific analysis workflows].
+
 
 # Data import
+
+- Define the experimental setup/data files. [TODO for jo: explain a bit why,
+  what's needed, add a screenshot of the content in xlsx.]
+
+
+1) Load all required R/Bioconductor libraries for the present analysis.
 
 ```{r}
 #| message: false
@@ -65,44 +72,16 @@ library(pheatmap)
 library(MetaboCoreUtils)
 ```
 
--   Load the xlsx file with the sample information
--   **Note**: we would ideally need to submit this data to MetaboLights. TODO:
-    prepare the files to submit.
--   **Note**: for the book chapter it might actually be better to describe how
-    to create and format a *sample* xlsx sheet to import the data - for the
-    reproducible workflow (this document) it would be better to import from
-    MetaboLights.
-      - add some definition on the columns info (collision energy, 
-      concentration ,..)
-
-```{r}
-std_spiked <- read_xlsx("data/standards.xlsx") |> as.data.frame()
-std_files <- read_xlsx("data/standards_mzml.xlsx") |> as.data.frame()
-std_files <- std_files[std_files$polarity == "POS", ]
-MZML_PATH <- file.path("data/mzML/")
-
-#' Prepare path to the files
-std_files <- std_files[grep("Mix13", std_files$mzML), ]
-
-#' Linking the raw data to its respective metadata. 
-std_data <- readMsExperiment(file.path(MZML_PATH, std_files$mzML),
-                             sampleData = std_files)
-```
-
-The current data set consists of the files and samples listed in the table
-below.
-
-```{r update-phenodata}
-#| tbl-cap: "Data files and samples."
-sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
-                         "concentration")] |>
-    kable(format = "pipe")
-```
-
-In order to make the analysis more efficient we will set up parallel processing
-and using 2 cores. This will allows to process 2 samples at a time. The same
-number need to thenbe input in the parameter `chunkSize =` during the main
-preprocessing steps. For more info see xxx:
+2) Configure parallel processing. All data analysis functions in *xcms* have
+   built-in parallel processing capabilities. In addition, to reduce memory
+   load, *xcms* performs analyses in a *chunk-wise manner*, i.e. only data from
+   a certain number of samples is loaded and processed at a time. This can be
+   configured with the parameter `chunkSize = ` in most data analysis
+   functions. Importantly, the number of CPU cores used should be smaller or
+   equal to the value for this parameter. Below we chose to use 2 CPU cores for
+   parallel processing. R supports on Unix systems the *multi-core* parallel
+   processing, while on Windows systems *simple network of workstation*
+   (SNOW)-based parallel processing must be used.
 
 ```{r}
 cores <- 2
@@ -114,95 +93,157 @@ if (.Platform$OS.type == "unix") {
 }
 ```
 
+3) Load experimental setup/sample information. It is good practice to define the
+   experimental setup using e.g. a spread sheet that contains the names of all
+   of the experiment's data files (eventually including their path) and their
+   respective samples including all phenotypical information as well as
+   technical/experimental properties. Ideally, the order of the samples should
+   match their injection sequence. A screenshot of the spread sheet for the
+   present experiment is shown in Figure XXX. Load the experiment's spread sheet
+   using the `read_xlsx()` function from the *readxl* R package. The same
+   `data.frame` could also be defined directly in R, but it is generally better,
+   and more convenient to the user, to define such spreadsheet with as
+   spreadsheet program.
+
+```{r}
+#' Import sample file
+sample_data <- read_xlsx("data/standards_mzml.xlsx") |> as.data.frame()
+```
+
+4) Create a *data representation* for the experiment. The `readMsExperiment()`
+   function takes the names of the data files (including the path to the
+   directory where they are stored - configured below using the `MZML_PATH`
+   variable) and a `data.frame` with the sample information for the respective
+   data files as input. The resulting `MsExperiment` object (variable
+   `sample_data`) contains a reference to the MS data files and the sample
+   information.
+
+```{r}
+#' Define the path to the directory where the data files can be found
+MZML_PATH <- file.path("data/mzML/")
+
+#' Linking the raw data to its respective metadata.
+std_data <- readMsExperiment(file.path(MZML_PATH, sample_data$mzML),
+                             sampleData = sample_data)
+```
+
+Sample information can be extracted using the `sampleData()` function:
+
+```{r}
+#| tbl-cap: "Data files and samples."
+sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
+                         "concentration")] |>
+    kable(format = "pipe")
+```
+
+5) Define colors to label individual - or sets of samples. For better
+   visualization it is suggested to assign a color to each sample. These can be
+   re-used in all plots during the analysis.
+
+```{r}
+#' Define colors
+col_concentration <- c(low = "#FF7F00", high = "#A65628")
+col_sample <- col_concentration[sampleData(std_data)$concentration]
+```
+
+
 # Initial data inspection
 
 ## Overview of full data
 
--   Describe why we should do that.
+-   Describe why we should do that...
+
+
+1) Create a base peak chromatogram (BPC) of the full data set and plot it. With
+   parameter `aggregationFun = "max"` the maximum intensity per spectrum is
+   reported, while setting `aggregationFun = "sum"` would sum-up all intensities
+   per spectrum, hence generating a total ion chromatogram (TIC).
 
 ```{r}
-bpc <- chromatogram(std_data, aggregationFun = "max")
+#' Create a BPC
+bpc <- chromatogram(std_data, aggregationFun = "max", chunkSize = cores)
 
-#' Define colors
-col_concentration <- c(low = "#FF7F00", high = "#A65628")
-col_sample <- col_concentration[sampleData(std_data)$concentration]
-
+#' Plot the BPC
 plot(bpc, col = paste0(col_sample, 80))
 grid()
 abline(v = c(15, 225), lty = 2)
+legend("topright", col = col_concentration, lty = 1,
+       legend = names(col_concentration))
 ```
 
-We filter the data set by retention time to focus on the part of the
-chromatography where compounds get actually separated.
+2) Filter the data set by retention time. Select the retention time range
+   containing clear signal (@Marilyn: maybe there is a better way to describe
+   this? would like to restrict the analysis to the part of the chromatogram
+   where separation/retention is actually happening). This selection could be
+   further solidified by evaluating the retention times of known compounds.
 
 ```{r}
 std_data <- filterSpectra(std_data, filterRt, c(15, 225))
 ```
 
-We extract again the BPC.
-
-```{r}
+```{r, echo = FALSE}
+#' Silently extract the BPC again - for reference later.
 bpc <- chromatogram(std_data, aggregationFun = "max")
-plot(bpc, col = paste0(col_sample, 80))
-grid()
-legend("topright", col = col_concentration, lty = 1,
-       legend = names(col_concentration))
 ```
-
-We can see differences, in particular, two high intensity abundance files have
-shifted or additional signal at around 130 seconds. 
 
 
 ## Extracting EICs for known compounds
 
-- introduce that "we show above how to get an overview of the chromatographic 
-  data, now we will zoom in on specific mz and rt areas." 
-- we show how to extract the eic of a "known" compound : proline
-  - precise that user should: approx 10 variable compounds 
-  (eg AA, more hydrophobic, bigger, small), either known or unknown compound
-  - say that this also allows us to estimate parameters for peak detection
+In addition to the general data evaluation above it is also strongly suggested
+to closely inspect the LC-MS signal. This allows to immediately spot potential
+problems with the data, ensure it is in *centroid* mode (which is a prerequisite
+for the chromatographic peak detection algorithm used below) and helps to derive
+parameter values for the various processing algorithms that will be used
+later. Ideally, signal should be evaluated for several ions, which can include
+ions of compounds that are expected to be present in the analyzed
+samples. Preferentially, these compounds, which can also include internal
+standards added to the sample mix, should have different retention times to
+ensure signal along most of the retention time dimension is evaluated. In the
+human serum samples analyzed here, we can expect metabolites such as proline,
+serine, tryptophan to be present. We show this on the example of proline, but
+the same code could be easily adapted for other compounds respectively expected
+ions.
+
+1) Determine the *m/z* range for proline: starting from its chemical formula,
+   calculate the theoretical mass and subsequently the theoretical *m/z* for one
+   of its ions. We use `"[M+H]+"` as the most likely adduct of proline in
+   positive polarity, but could also specify any other possible adduct, such as
+   `"[M+Na]+`, `"[M+NH4]+` etc. Create a range around the theoretical *m/z*
+   by subtracting and adding a value of 0.01. Depending on the accuracy and
+   precision of the MS instrument, this value might be increased or decreased.
 
 ```{r}
+#' Calculate the mass of proline
 proline_formula <- "C5H9NO2"
 proline_mass <- calculateMass(proline_formula)
 
-proline_mz <- mass2mz(proline_mass, c("[M+H]+", "[M+NH4]+", "[M+H-CH2O2]+"))[1, ]
+#' Calculate m/z for an adduct of proline
+proline_mz <- mass2mz(proline_mass, c("[M+H]+"))[1, ]
 proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
+```
 
+2) Extract and plot the EIC. If the expected retention time range is not known,
+   parameter `rt` can also be omitted and the ion trace is extracted for the
+   full full retention time range.
+
+```{r}
 proline_eic <- chromatogram(std_data, mz = proline_mzr)
 
 plot(proline_eic, col = paste0(col_sample, 80))
 ```
 
-Signal is not that clear. We zoom into the region to get more information.
-
-```{r}
-plot(proline_eic, col = paste0(col_sample, 80), xlim = c(140, 200))
-```
-
-Pretty tricky situation... not clear which signal it might be. maybe the one
-around 190 seconds?
-
-```{r}
-plot(proline_eic, col = paste0(col_sample, 80), xlim = c(185, 195))
-```
-
-If this is supposed to be proline 
-
-- why does the intensity of the signal differ
-between low and high??? So, most likely this is **not** proline. What about the
-signal at around 170:
+- Multiple peaks are available. For the HPLC-MS setup we know that proline
+  should elute at xxx seconds, so we zoom into that region.
 
 ```{r}
 plot(proline_eic, col = paste0(col_sample, 80), xlim = c(165, 175))
 ```
 
 This seems to make more sense...
-**Notes**: I would justify the results above to subset the `proline_eic` 
-vairable to only samples where we see the peaks. 
+**Notes**: I would justify the results above to subset the `proline_eic`
+vairable to only samples where we see the peaks.
 ALso i would keep the explanation of the 2 peaks and discuss it with the `bw`
-param later down. even if they are far apart it still can be used i think. 
-
+param later down. even if they are far apart it still can be used i think.
 
 We can also visualize the individual mass peaks for the \[M+H\]+ ion in the
 first sample.
@@ -221,7 +262,7 @@ Above we visualize individual mass peaks in the m/z - retention time plane: eval
   whether data is in centroid mode and allows to determine variance in peaks'
   m/z along retention time axis.
 
- 
+
 
 
 ```{r}
@@ -237,6 +278,9 @@ max(mz_diff)
 -   Use this information to determine rt width and m/z deviation. e.g. `ppm=` �
     parameter for peak picking.
 
+**Note** what to do when no information on known compounds is available? Select
+area from BPC, extract full MS1 scan, select m/z range with e.g. high peak,
+extract EIC from that. Maybe add that as a "Note".
 
 # Data preprocessing
 
@@ -251,7 +295,7 @@ max(mz_diff)
 Peakwidth seems to be between 3-5 seconds. So we go for `peakwidth = c(2, 8)`
 
 Difference between `integrate = 1` and `integrate = 2`? Should we mention that
-or is it too much info/detail? 
+or is it too much info/detail?
 
 - We should just precise that we use = 2 because gaussian-ish shape.
 
@@ -260,7 +304,7 @@ or is it too much info/detail?
 Same for proline:
 
 ```{r}
-cwp <- CentWaveParam(peakwidth = c(2, 8), integrate = 2, snthresh = 1) 
+cwp <- CentWaveParam(peakwidth = c(2, 8), integrate = 2, snthresh = 1)
 
 proline_eic <- findChromPeaks(proline_eic, param = cwp)
 chromPeaks(proline_eic)
@@ -284,7 +328,7 @@ std_data <- findChromPeaks(std_data, param = cwp, chunkSize = cores)
 
 Do peak refinement. Just mention in text that it is
 suggested.because artifact artifact can be created, refinement
-would fix that. 
+would fix that.
 
 -   Performing peak merging.
 
@@ -362,12 +406,12 @@ grid()
 ```
 
 Hm, does not seem to be particularly good. Let's extract the serine and proline
-again. 
+again.
 
 - we can describe that is seem to be working up until 180s but after
-  that not really. 
-- what could be the potential steps to fix this (finding anchor peaks in that 
-  area) but i would live it at that. 
+  that not really.
+- what could be the potential steps to fix this (finding anchor peaks in that
+  area) but i would live it at that.
   - then check in proline example.
 
 ```{r}
@@ -394,7 +438,7 @@ Quantify similarity of BPC between samples.
 ## Correspondence analysis
 
 For correspondence, use now more stringent settings for retention time
-differences. 
+differences.
 
 - mention `bw` here again, and that it should be stricter than in
 the alignment step. e.g. because we expect the peaks of one feature to be closer
@@ -444,7 +488,7 @@ boxplot(log2(fil))
 
 **Notes**: explain what we expect. why we compare low vs low and high vs high.
 low: expect similar amount of filled values.
-high : ? 
+high : ?
 
 compared filled vs detected for low
 
@@ -481,7 +525,7 @@ abline(0, 1, col = "grey")
 ```{r}
 idx_low <- grp == "low"
 
-res_cv <- data.frame(low = rowRsd(featureValues(std_data)[, idx_low]), 
+res_cv <- data.frame(low = rowRsd(featureValues(std_data)[, idx_low]),
                      high = rowRsd(featureValues(std_data)[, !idx_low]))
 
 dens <- apply(res_cv, 2, density, na.rm = TRUE)
@@ -497,14 +541,14 @@ legend("topright", legend=names(dens), fill=adjustcolor(cols, alpha.f=0.5))
 ```
 oh that would remove a lot of features.
 
-We filter based on the Qcs samples. because in our dataset we have 2 types of 
+We filter based on the Qcs samples. because in our dataset we have 2 types of
 QCs we will do this in 2 steps (???)
 
 ```{r}
-std_data_filt <- filterFeatures(std_data, RsdFilter(qcIndex = idx_low, 
+std_data_filt <- filterFeatures(std_data, RsdFilter(qcIndex = idx_low,
                                                    threshold = 0.3))
 
-std_data_filt <- filterFeatures(std_data_filt, RsdFilter(qcIndex = !idx_low, 
+std_data_filt <- filterFeatures(std_data_filt, RsdFilter(qcIndex = !idx_low,
                                                    threshold = 0.3))
 ```
 **Notes**: Idk if you want to keep that. as you want !
