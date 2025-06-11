@@ -9,12 +9,11 @@ code_folding: hide
 editor: source
 date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
 bibliography: lcms-data-preprocessing.bib
-csl: springerprotocols.csl
+#csl: springerprotocols.csl #FINDME @mdg: temp, works but not on cluster
 ---
 
 ```{r setup, include=FALSE}
 library(knitr)
-#library(quarto)   #FINDME: @phili: not needed, ok if rm?
 library(BiocStyle)
 knitr::opts_knit$set(root.dir = './')
 ```
@@ -110,13 +109,14 @@ directory named MTBLSXX within their R working directory.
 The LC-MS data used in this chapter comes from a small, publicly available
 untargeted metabolomics study. Samples were analyzed using HILIC UPLC-QTOF-MS in
 both positive and negative ionization modes, as described in *XXX [FINDME @jo:
-REF to paper LC-MS METHOD]*. Raw data files are provided in the open and vendor-independent
-.mzML format (*see* **Note 2**).
+REF to paper LC-MS METHOD]*. Raw data files are provided in the open and
+vendor-independent .mzML format (*see* **Note 2**).
 
 The dataset consists of pooled human serum samples, which represent internal
 quality control (QC) samples, each spiked with known compounds at two
-concentration levels: high and low. Each sample was measured in technical
-triplicate to assess reproducibility (Table 1).
+concentration levels: high and low. Each sample was measured in the positive
+ionisation mode and as a technical triplicate to assess reproducibility
+(Table 1).
 
 Additionally, two LC-MS/MS runs were acquired for one of the high concentration
 samples using data-dependent acquisition (DDA) at two different collision
@@ -183,7 +183,7 @@ analyses include:
 Additional R packages support the workflow by enabling data visualization
 (*RColorBrewer*, *pheatmap*), reading of metadata and tabular input files
 (*readxl*), and providing utility functions that enhance reproducibility and
-automation (*knitr*, *quarto*, *BiocStyle*).
+automation (*knitr*, *BiocStyle*).
 
 
 # 3. Methods
@@ -229,6 +229,7 @@ library(MsBackendMgf)
 ```{r}
 #' Define the number of cores
 CORES <- 2
+CORES <- 7 #FINDME temp @mdg: only for run on cluster
 
 #' Set up parallel processing using 2 cores
 if (.Platform$OS.type == "unix") {
@@ -239,12 +240,12 @@ if (.Platform$OS.type == "unix") {
 ```
 
 3) Load experimental setup/sample information. It is good practice to define the
-   experimental setup using e.g. a spread sheet that contains the names of all
+   experimental setup using e.g. a spreadsheet that contains the names of all
    of the experiment's data files (eventually including their path) and their
    respective samples including all phenotypical information as well as
    technical/experimental properties. Ideally, the order of the samples should
-   match their injection sequence. The content of the spread sheet for the
-   present experiment is shown in Table 1. Load the experiment's spread sheet
+   match their injection sequence. The content of the spreadsheet for the
+   present experiment is shown in Table 1. Load the experiment's spreadsheet
    using the `read_xlsx()` function from the *readxl* R package (*see*
    **Note 4**).
 
@@ -278,7 +279,7 @@ std_data <- readMsExperiment(file.path(MZML_PATH, sample_data$mzML),   #FINDME @
 ```{r}
 #| tbl-cap: "Data files and samples."
 
-#' Print the sample information table
+#' View the sample information table
 sampleData(std_data)[, c("mzML", "sample_name", "mode", "collision_energy",
                          "concentration")] |>
     kable(format = "pipe")
@@ -345,8 +346,8 @@ std_data <- filterSpectra(std_data, filterRt, c(15, 225))
 3) Create a BPC of the rt filtered dataset for further evaluation (*see*
    **Section 3.3.2**).
 
-```{r, echo = FALSE}
-#' Silently extract the BPC again - for reference later.
+```{r}
+#' Extract the BPC again - for reference later.
 bpc <- chromatogram(std_data, aggregationFun = "max")
 ```
 
@@ -388,7 +389,7 @@ plot(proline_eic, col = paste0(col_sample, 80), xlim = c(165, 175))
    and *m/z* values representing the full chromatogram and spectra range,
    respectively. If the expected retention time range is unknown, omit the
    parameter `rt` of the `chromatogram()` function and extract the ion trace for
-   the full full retention time range. #FINDME @mdg, ok is 1 nice peak?
+   the full full retention time range.
 
 ```{r}
 #' Extract the EIC for an unknown compound
@@ -396,9 +397,6 @@ unknown_eic <- chromatogram(std_data, mz = c(106.0399, 106.0599))
 
 #' Plot the full EIC
 plot(unknown_eic, col = paste0(col_sample, 80))
-
-#' Plot the EIC, zoomed in to one unknown compound
-plot(unknown_eic, col = paste0(col_sample, 80), xlim = c(170, 190))
 ```
 
 
@@ -509,11 +507,11 @@ downstream statistical analysis.
    finetuning of the default preprocessing settings.  *#FINDME @jo: good link?*
 
 ```{r}
-#' Print the selected peak detection parameters
-print(paste0(" The selected peak width is: "), PEAKWIDTH)
-print(paste0(" The selected signal-to-noise ratio threshold is: "), SNTHRESH)
-print(paste0(" The selected integrate setting is: "), INTEGRATE)
-print(paste0(" The selected *m/z* deviation is: "), PPM)
+#' View the selected peak detection parameters
+cat("The selected peak width is: ", PEAKWIDTH, "\n")
+cat("The selected signal-to-noise ratio threshold is: ", SNTHRESH, "\n")
+cat("The selected integrate setting is: ", INTEGRATE, "\n")
+cat("The selected *m/z* deviation is: ", PPM, "\n")
 ```
 
 2) Perform chromatographic peak detection on a selection of the data first,
@@ -532,8 +530,8 @@ cwp <- CentWaveParam(peakwidth = PEAKWIDTH,
 #' Perform peak detection for the proline EIC
 proline_eic <- findChromPeaks(proline_eic, param = cwp)
 
-#' View a part of the retrieved peaks
-chromPeaks(proline_eic)[1:10]  #FINDME @mdg: ok subsetting wo bug?
+#' View the top of the retrieved peaks
+head(chromPeaks(proline_eic))
 
 #' Plot the proline EIC after peak detections
 plot(proline_eic,
@@ -571,7 +569,7 @@ mnpp <- MergeNeighboringPeaksParam(expandRt = 3,
                                    minProp = 0.8)
 
 #' Perform peak refinement                           
-std_data <- refineChromPeaks(std_data, mnpp, chunkSize = CORES)
+std_data <- refineChromPeaks(std_data, param = mnpp, chunkSize = CORES)
 ```
 
 5) View the summary of identified peaks. Especially pay attention to the number
@@ -579,11 +577,11 @@ std_data <- refineChromPeaks(std_data, mnpp, chunkSize = CORES)
    widths.
 
 ```{r}
-#' Summary of identified peaks
+#' View summary of identified peaks
 data.frame(sample_name = sampleData(std_data)$sample_name,
            peak_count = as.integer(table(chromPeaks(std_data)[, "sample"]))) |>
   t() |>
-  kable(format = "pipe") #FINDME @phili: could we rearange table so not just 6x peak count per sample?
+  kable(format = "pipe") #FINDME @phili: could we also add the quantiles of retention time widths or other interesting stats?
 ```
 
 
@@ -595,8 +593,8 @@ data.frame(sample_name = sampleData(std_data)$sample_name,
    finetuning of the default preprocessing settings.  *#FINDME @jo: good link?*
 
 ```{r}
-#' Print the selected retention time alignment parameters
-print(paste0(" The selected bandwidth for the peak density is: "), BW_WIDE)
+#' View the selected retention time alignment parameters
+cat("The selected bandwidth for the peak density is: ", BW_WIDE, "\n")
 ```
 
 2) Define peak density parameters for the feature grouping on a selection of the
@@ -620,7 +618,7 @@ pdp <- PeakDensityParam(sampleGroups = grp,
                         ppm = PPM)
 
 #' Plot the EIC of proline using the defined PeakDensityParam
-plotChromPeakDensity(proline_eic[1, ], pdp)  #FINDME @mdg code ok?
+plotChromPeakDensity(proline_eic[1, ], param = pdp)
 ```
 
 3) Perform the initial correspondence of chromatographic peaks into
@@ -632,24 +630,25 @@ plotChromPeakDensity(proline_eic[1, ], pdp)  #FINDME @mdg code ok?
 
 ```{r}
 #' Initial correspondence
-std_data <- groupChromPeaks(std_data, pdp)
+std_data <- groupChromPeaks(std_data, param = pdp)
 ```
 
 4) Perform retention time alignment to correct systematic shifts between samples
    using peak groups.  Use the `PeakGroupsParam()` rt alginment settings
    `minFraction`: minimum fraction of samples that must share an anchor peak for
    alignment, `extraPeaks`: number of extra peaks per feature considered for
-   robust alignment, and `span`: controls the smoothness of the alignment curve
-   (smaller values fit more local variation).  
+   robust alignment (i.e., For a dataset with 8 samples, `extraPeaks = 1` uses
+   all peak groups with a total peak count <= 8 + 1), and `span`: controls the
+   smoothness of the alignment curve (smaller values fit more local variation).  
 
 ```{r}
 #' Define retention time alignment parameters
 pgp <- PeakGroupsParam(minFraction = 6 / 8, #FINDME @phili: why here different? how get this, I want to add to the initial inspection otherwise
-                       extraPeaks = 50, 
+                       extraPeaks = 5, #FINDME @phili: why initial so high as 50?
                        span = 0.4)
 
 #' Perform retention time alignment
-std_data <- adjustRtime(std_data, pgp, chunkSize = CORES)
+std_data <- adjustRtime(std_data, param = pgp, chunkSize = CORES)
 
 #' Plot the difference in rt before vs. after rt alignment
 plotAdjustedRtime(std_data)
@@ -700,7 +699,340 @@ std_data <- applyAdjustedRtime(std_data)
    the previous section. 
 
 ```{r}
-#' Print the selected retention time alignment parameters
+#' View the selected retention time alignment parameters
 print(paste0(" The selected bandwidth for the peak density is: "), BW_NARROW)
 ```
+
+2) Define peak density parameters for the feature grouping on a selection of the
+   data, i.e., for each EIC. Use the more stringent bandwidth for the peak
+   density `BW_NARROW`, as peaks belonging to the same feature are expected to
+   be detected closer to each other after rt alignment. The setting `simulate =
+   FALSE` visualizes real data peak density and helps you to assess if the
+   chosen parameters capture the grouping behavior accurately.
+
+```{r}
+#' Define peak density parameters for grouping features
+pdp <- PeakDensityParam(sampleGroups = grp,
+                        bw = BW_NARROW,
+                        minFraction = 2 / 3,
+                        binSize = 0.02,
+                        ppm = PPM)
+
+#' xxxx comment to add, FINDME @phili
+#' #proline_eic_adj <- chromatogram(std_data, mz = proline_mzr, rt =
+#                                  cbind(rep(150, 3), rep(200, 3)))
+#FINDME @phili: why need cbind? why not works with previous object proline_eic_adj OR one below?
+#proline_eic_adj <- chromatogram(std_data, mz = proline_mzr, rt = c(160, 200))  
+
+#' Plot the EIC of proline using the defined PeakDensityParam
+#plotChromPeakDensity(proline_eic_adj[1, ], param = pdp,  simulate = FALSE) #FINDME @jo: why does this not plot inline? now error: Error in `!missing(fts) && nrow(fts)`: ! invalid 'y' type in 'x && y'
+```
+
+3) Perform the final correspondence of chromatographic peaks into features. 
+
+```{r}
+#' Final correspondence
+std_data <- groupChromPeaks(std_data, param = pdp)
+```
+
+
+### 3.3.4 Gap filling
+
+1) Perform gap filling to reduce number of peaks with NA values, by rechecking
+   if there was a signal for each feature in each sample upon feature grouping.
+
+```{r}
+#' View total number of features
+cat("Total number of features: ", 
+      length(featureValues(std_data)), "\n")
+
+#' View the number of missing features
+cat("Missing values in features: ", 
+      sum(is.na(featureValues(std_data))), "\n")
+
+#' Perform gap filling
+std_data <- fillChromPeaks(std_data, ChromPeakAreaParam())
+
+#' View the number of missing features after gap filling
+cat("Missing values in features after gap filling: ", 
+      sum(is.na(featureValues(std_data))), "\n")
+```
+
+{
+    *#FINDME: @jo/phili: why needed any of this below? 
+    It is not really a 'step' you have to do?*
+    
+    Compare filled data to detected values.
+
+```{r}
+det <- featureValues(std_data, filled = FALSE)
+fil <- featureValues(std_data)
+fil[!is.na(det)] <- NA
+
+boxplot(log2(det))
+boxplot(log2(fil))
+```
+
+**Notes**: explain what we expect. why we compare low vs low and high vs high.
+low: expect similar amount of filled values.
+high : ?
+
+compared filled vs detected for low
+
+```{r}
+a <- det[, which(grp == "low")]
+b <- fil[, which(grp == "low")]
+keep <- is.na(rowSums(det))
+
+plot(rowMeans(log2(a), na.rm = TRUE)[keep],
+     rowMeans(log2(b), na.rm = TRUE)[keep],
+     xlab = "detected", ylab = "filled")
+grid()
+abline(0, 1, col = "grey")
+```
+
+Same for high
+
+```{r}
+a <- det[, which(grp == "high")]
+b <- fil[, which(grp == "high")]
+keep <- is.na(rowSums(det))
+
+plot(rowMeans(log2(a), na.rm = TRUE)[keep],
+     rowMeans(log2(b), na.rm = TRUE)[keep],
+     xlab = "detected", ylab = "filled")
+grid()
+abline(0, 1, col = "grey")
+```
+
+}
+
+## 3.4 Post processing
+
+Following the preprocessing, the resulting feature table represents the
+foundation for downstream statistical and biological interpretation. This
+post-processing phase typically involves several key steps to refine and analyze
+the data further. These include normalization of feature intensities across
+samples to correct for systematic variation, removal of outlier features that
+may represent technical artifacts, and assessment of sample variance to identify
+trends or inconsistencies.
+
+Subsequently, differential abundance analysis is performed to identify metabolic
+features that distinguish phenotypes or experimental conditions of
+interest. Multivariate statistical methods, such as principal component analysis
+(PCA), hierarchical clustering, (orthogonal) partial least squares discriminant
+analysis ((O)PLS-DA), linear regression-based approaches, or machine learning
+algorithms are often employed to visualize global patterns and highlight
+relevant features.
+
+Finally, metabolite annotation of significant or interesting features is a
+critical step for biological interpretation, enabling insights into the
+metabolic pathways or processes involved. The exact post-processing pipeline may
+vary depending on the research question, experimental design, and biological
+matrix.
+
+For practical code examples and guidance on the post processing, we refer the
+reader to the many [example
+workflows](https://rformassspectrometry.github.io/Metabonaut/index.html) of the
+Metabonaut resource [@louail_metabonaut_2025], which provides detailed and
+modular R-based workflows for each component of post-processing.
+
+
+{
+    *#FINDME @phili/jo , see notes below decision: to add or not?*
+
+### 3.4.1 CV-based filtering
+
+    1) xxx
+
+```{r}
+idx_low <- grp == "low"
+
+res_cv <- data.frame(low = rowRsd(featureValues(std_data)[, idx_low]),
+                     high = rowRsd(featureValues(std_data)[, !idx_low]))
+
+dens <- apply(res_cv, 2, density, na.rm = TRUE)
+
+plot(NA, xlim=range(sapply(dens, "[[", "x")), ylim=range(sapply(dens, "[[", "y")),
+     xlab = "X", ylab = "Density", main = "Density Curves with Fill")
+cols <- rainbow(length(dens))
+mapply(function(d, col) {
+  polygon(d$x, d$y, col=adjustcolor(col, alpha.f=0.5), border=col)
+}, dens, cols)
+abline(v = 0.3, col = "red", lty = 2, lwd = 2)
+legend("topright", legend=names(dens), fill=adjustcolor(cols, alpha.f=0.5))
+```
+
+oh that would remove a lot of features.
+
+We filter based on the Qcs samples. because in our dataset we have 2 types of
+QCs we will do this in 2 steps (???)
+
+```{r}
+std_data_filt <- filterFeatures(std_data, RsdFilter(qcIndex = idx_low,
+                                                   threshold = 0.3))
+
+std_data_filt <- filterFeatures(std_data_filt, RsdFilter(qcIndex = !idx_low,
+                                                   threshold = 0.3))
+```
+
+**Notes**: *Idk if you want to keep that. as you want !
+Also there is a MissingValueFilter that could be nice here ? especially because
+there is SO many features.
+Maybe mention that usually we would run the CV one after normalisation no ?
+mdg: I would remove this whole  3.4.1 section and only mention some text what
+you can do and refer to the metabonaut repo.*
+
+}
+
+
+## 3.5 Data export
+
+After completing preprocessing, and optionaly some further data filtering and/or
+normalisation, the feature table can be exported for downstream analysis,
+sharing, or archiving. This step ensures reproducibility and allows
+interoperability with other software tools for statistical analysis or
+metabolite identification. Below, we outline key procedures to export the
+processed data, including both the feature intensity matrix and the MS/MS
+spectra.
+
+1) Export feature table as a `SummarizedExperiment` object (*see* **Note 9**). 
+
+```{r}
+#' Extract feature intensity results as a SummarizedExperiment
+res <- quantify(std_data, method = "sum", filled = FALSE)
+
+#' View the summary of the result object
+res
+```
+
+2) Add a second assay containing missing-value filled data to
+   `SummarizedExperiment` object. The additional assay contains filled intensity
+   values (i.e., using gap-filling methods for missing peaks), so it can be used
+   in downstream imputation-aware analysis.
+
+```{r}
+#' Add a second assay named 'raw_filled' with gap-filled intensities
+assays(res)$raw_filled <- featureValues(std_data, method = "sum",
+                                        filled = TRUE )
+
+#' View different assays in the SummarizedExperiment object
+assayNames(res)
+
+#' View the top of the filled feature intensity matrix 
+assay(res, "raw_filled") |> head()
+```
+
+3) Export the feature abundance matrix to a spreadsheet. For ease of data
+   sharing or as input into external tools (e.g., Excel, Python), the feature
+   intensity matrix can be exported as a .csv file.
+
+```{r}
+#' Write the filled feature intensity matrix to a CSV file
+write.csv(assay(res, "raw_filled"),
+         file = "data/standards_abundance.csv",
+         row.names = TRUE)
+```
+
+4) Export the MS/MS spectra in MGF format. To support metabolite annotation in
+   external tools (e.g., GNPS, MS-DIAL, or SIRIUS), the MS/MS spectra associated
+   with detected MS features are exported to the Mascot Generic Format
+   (MGF). The `MsBackendMgf()` backend function is used here to write the
+   compatible files.
+
+```{r}
+#' Extract the MS/MS spectra corresponding to the chromatographic peaks
+sp <- chromPeakSpectra(std_data)
+
+#' Export the MS/MS spectra in .mgf format
+export(sp, MsBackendMgf(), file = "data/std_spectra.mgf")
+```
+
+
+## 3.6 Session information
+
+1) Print the R session info in the rendered Quarto document (*see* **Note 10**). 
+
+```{r}
+#' View R session info
+sessionInfo()
+```
+
+
+# Notes
+
+1) Writing workflow processes using Quarto documents (.qmd) supports literate
+   programming by integrating code, text, and outputs in a single file. Quarto
+   enables the creation of fully reproducible documents by embedding R code
+   directly within narrative text, ensuring that results are dynamically
+   generated from the most up-to-date data. This approach facilitates
+   transparent, data-specific analysis workflows that are easy to audit, share,
+   and update. By combining documentation and computation, Quarto helps
+   streamline reporting, improve collaboration, and enhance the reproducibility
+   of scientific and statistical analyses.
+
+2) The workflow starts from vendor-neutral raw MS files, already converted from
+   vendor-specific proprietary raw file formats (e.g., Thermo Fisher, Agilent,
+   Bruker, Waters) to the open standard for MS data, i.e. the mzML format.
+   Conversion of vendor-specific raw MS files is performed using *MSConvert*, a
+   powerful and flexible tool from *ProteoWizard*. Using mzML as a standard
+   format ensures that your MS data can be analyzed in a reproducible,
+   tool-independent way.
+
+3) R packages can be installed from the Comprehensive R Archive Network (CRAN)
+   or from Bioconductor using the following commands:
+
+```
+#' Install CRAN packages
+install.packages("knitr") 
+
+#' Install Bioconductor packages
+install.packages("BiocManager")
+BiocManager::install("BiocStyle")
+```
+
+4) Alternatively to using the `read_xlsx()` function from the *readxl* R
+   package, the same tabular information could also be defined directly in R as
+   a `data.frame` object, but it is generally better, and more convenient to the
+   user, to define and load such spreadsheet from as spreadsheet program.
+
+5) For improved visualization, it is recommended to assign specific colors to
+   individual samples as well as to sample groups. These color settings can be
+   re-used in all plots during the analysis. Suggested color-coding schemes
+   include: acquisition batch, injection order, sample type (e.g., QC, spiked,
+   biological), and biological phenotypes of interest (e.g., sex, case-control
+   status). These visual cues aid in assessing data quality and identifying
+   potential systematic variation.
+
+6) When no prior information is available about expected compounds, select
+   high-intensity peaks from the BPC, extract full MS1 scans, and evaluate EICs
+   to derive rt and *m/z* parameters empirically.
+
+7) Accurate peak detection requires centroided data and a prerequisite for the
+   chromatographic peak detection algorithm. If your data is not centroided, use
+   MSConvert or a similar tool to convert profile mode data to centroid mode
+   before importing it into R. *#FINDME @phili, maybe note to make centroid, or
+   do you also do this in MSconvert?*
+
+8) The *m/z* mass deviation is expressed as ppm and not in *m/z* difference (in
+   Da) because the variation scales with the molecular mass of the compound. It
+   is important to estimate the ppm also on large compounds, as the ppm
+   increases with larger compounds. For example, if your highest *m/z* detected
+   is 1000 Da, and you have an estimated error of 5 ppm, the largest possible
+   *m/z* deviation allowed is 1000 ± 0.005 Da (*m/z* mass deviation = 1000 Da *
+   5 ppm / 10^6), ranging from 999.995 to 1000.005 Da.
+
+9) The SummarizedExperiment container is a robust Bioconductor class that holds
+   both assay data (e.g., intensity values) and associated metadata (e.g.,
+   feature and sample annotations). It provides a standardized format for
+   integrating omics data and simplifies downstream manipulation or analysis.
+
+10) Including a call to sessionInfo() at the end of the workflow is important
+    for ensuring reproducibility, as it documents the versions of R and all
+    loaded packages, as well as system-specific details that may influence
+    results.
+
+
+# References
+
 
