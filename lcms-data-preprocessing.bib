@@ -5,7 +5,7 @@
 	shorttitle = {rformassspectrometry/Metabonaut},
 	version = {v1.0.0},
 	publisher = {Zenodo},
-	author = {Philippine Louail and Johannes Rainer},
+	author = {Louail, Philippine and Rainer, Johannes},
 	editora = {Tagliaferri, Anna and Verri Hernandes, Vinicius and Marques de Sá e Silva, Daniel},
 	editoratype = {collaborator},
 	urldate = {2025-03-21},
@@ -14,16 +14,70 @@
 	note = {Language: en},
 	keywords = {Metabolomics, {LC}-{MS}/{MS}, Turorials, xcms},
 }
-@article{temp_xcms_preprint,
-	author = {Philippine Louail et al},
-	title = {temp_xcms_preprint},
-	journal = {xxx},
-	year = {2025},
-	rating = {0},
-	date-added = {2009-01-05T08:26:04GMT},
-	date-modified = {2018-09-27T06:22:36GMT},
-	url = {http://www.statsci.org/smyth/pubs/ebayes.pdf},
+
+@software{summarized_experiment,
+	title = {SummarizedExperiment: A container (S4 class) for matrix-like assays},
+	rights = {Creative Commons Attribution 4.0 International},
+	url = {https://bioconductor.org/packages/SummarizedExperiment},
+	shorttitle = {A container (S4 class) for matrix-like assays},
+	author = {Morgan, Martin and Obenchain, Valerie and Hester, Jim and Pagès, Hervé},
+	urldate = {2025-06-16},
+	date = {2025-06-16},
+	doi = {10.18129/B9.bioc.SummarizedExperiment},
+	note = {Language: en}
 }
+
+@software{spectra,
+	title = {Spectra: Infrastructure for Mass Spectrometry Data},
+	rights = {Creative Commons Attribution 4.0 International},
+	url = {https://bioconductor.org/packages/Spectra},
+	shorttitle = {Spectra: Infrastructure for Mass Spectrometry Data},
+	author = {Rainer, Johannes and Louail, Philippine and Stanstrup, Jan and Shahaf, Nir and Garcia-Aloy, Mar and Deflandre, Guillaume and Gibb, Sebastian and Gatto, Laurent},
+	urldate = {2025-06-16},
+	date = {2025-06-16},
+	doi = {10.18129/B9.bioc.Spectra},
+	note = {Language: en}
+}
+
+@software{ms_experiment,
+	title = {MsExperiment: Infrastructure for Mass Spectrometry Experiments},
+	rights = {Creative Commons Attribution 4.0 International},
+	url = {https://bioconductor.org/packages/MsExperiment},
+	shorttitle = {MsExperiment: Infrastructure for Mass Spectrometry Experiments},
+	author = {Gatto, Laurent and Borman, Tuomas and Gibb, Sebastian and Rainer, Johannes},
+	urldate = {2025-06-16},
+	date = {2025-06-16},
+	doi = {10.18129/B9.bioc.MsExperiment},
+	note = {Language: en}
+}
+
+@software{ms_backend_mgf,
+	title = {MsBackendMgf: Mass Spectrometry Data Backend for Mascot Generic Format (mgf) Files},
+	rights = {Creative Commons Attribution 4.0 International},
+	url = {https://bioconductor.org/packages/MsBackendMgf},
+	shorttitle = {MsBackendMgf: Mass Spectrometry Data Backend for Mascot Generic Format (mgf) Files},
+	author = {Gatto, Laurent and Witting, Michael and Rutz, Adriano and Broeckling, Corey and Gibb, Sebastian and Rainer, Johannes},
+	urldate = {2025-06-16},
+	date = {2025-06-16},
+	doi = {10.18129/B9.bioc.MsBackendMgf},
+	note = {Language: en}
+}
+
+@article{temp_xcms_preprint,
+	title = {xcms at 20 and still in peak form: {Anchoring} a complete metabolomics data preprocessing and analysis software ecosystem},
+	shorttitle = {xcms at 20 and still in peak form},
+	url = {https://chemrxiv.org/engage/chemrxiv/article-details/6836f52d3ba0887c3371221c},
+	doi = {10.26434/chemrxiv-2025-2n2kh},
+	abstract = {High-quality data preprocessing is essential for untargeted metabolomics experiments, where increasing dataset scale and complexity demand adaptable, robust, and reproducible software solutions. Modern preprocessing tools must evolve to integrate seamlessly with downstream analysis platforms, ensuring efficient and streamlined workflows. Since its introduction in 2005, the xcms R package has become one of the most widely used tools for LC-MS data preprocessing. Developed through an open-source, community-driven approach, xcms has maintained long-term stability while continuously expanding its capabilities and accessibility. We present recent advancements that position xcms as a central component of a modular and interoperable software ecosystem for metabolomics data analysis. Key improvements include enhanced scalability, enabling the processing of large-scale experiments with thousands of samples on standard computing hardware. These developments empower users to build comprehensive, customizable, and reproducible workflows tailored to diverse experimental designs and analytical needs. An expanding collection of tutorials, documentation, and teaching materials further supports both new and experienced users in leveraging the broader R and Bioconductor ecosystems. These resources facilitate the integration of statistical modeling, visualization tools, and domain-specific packages, extending the reach and impact of xcms workflows. Together, these enhancements solidify xcms as a cornerstone of modern metabolomics research.},
+	language = {en},
+	urldate = {2025-06-16},
+	publisher = {ChemRxiv},
+	author = {Louail, Philippine and Brunius, Carl and Garcia-Aloy, Mar and Kumler, William and Storz, Norman and Stanstrup, Jan and Treutler, Hendrik and Vangeenderhuysen, Pablo and Witting, Michael and Neumann, Steffen and Rainer, Johannes},
+	month = jun,
+	year = {2025},
+	keywords = {computational mass spectrometry, LC-MS preprocessing, open software development}
+}
+
 @article{rainer_modular_2022,
 	title = {A Modular and Expandable Ecosystem for Metabolomics Data Annotation in R},
 	volume = {12},
@@ -41,4 +95,95 @@
 	date = {2022-02-11},
 	langid = {english},
 	file = {Full Text:/home/mdegraeve/snap/zotero-snap/common/Zotero/storage/PH6XFE62/Rainer et al. - 2022 - A Modular and Expandable Ecosystem for Metabolomics Data Annotation in R.pdf:application/pdf},
+}
+
+@article{gentleman_bioconductor_2004,
+	title = {Bioconductor: open software development for computational biology and bioinformatics},
+	volume = {5},
+	doi = {10.1186/gb-2004-5-10-r80},
+	abstract = {The Bioconductor project is an initiative for the collaborative creation of extensible software for computational biology and bioinformatics. The goals of the project include: fostering collaborative development and widespread use of innovative software, reducing barriers to entry into interdisciplinary scientific research, and promoting the achievement of remote reproducibility of research results. We describe details of our aims and methods, identify current challenges, compare Bioconductor to other open bioinformatics projects, and provide working examples.},
+	language = {eng},
+	number = {10},
+	journal = {Genome Biology},
+	author = {Gentleman, Robert C. and Carey, Vincent J. and Bates, Douglas M. and Bolstad, Ben and Dettling, Marcel and Dudoit, Sandrine and Ellis, Byron and Gautier, Laurent and Ge, Yongchao and Gentry, Jeff and Hornik, Kurt and Hothorn, Torsten and Huber, Wolfgang and Iacus, Stefano and Irizarry, Rafael and Leisch, Friedrich and Li, Cheng and Maechler, Martin and Rossini, Anthony J. and Sawitzki, Gunther and Smith, Colin and Smyth, Gordon and Tierney, Luke and Yang, Jean Y. H. and Zhang, Jianhua},
+	year = {2004},
+	pages = {R80}
+}
+
+@article{huber_orchestrating_2015,
+	title = {Orchestrating high-throughput genomic analysis with {Bioconductor}.},
+	volume = {12},
+	doi = {10.1038/nmeth.3252},
+	abstract = {Bioconductor is an open-source, open-development software project for the analysis and comprehension of high-throughput data in genomics and molecular biology. The project aims to enable interdisciplinary research, collaboration and rapid development of scientific software. Based on the statistical programming language R, Bioconductor comprises 934 interoperable packages contributed by a large, diverse community of scientists. Packages cover a range of bioinformatic and statistical applications. They undergo formal initial review and continuous automated testing. We present an overview for prospective users and contributors.},
+	language = {English},
+	number = {2},
+	journal = {Nature Methods},
+	author = {Huber, Wolfgang and Carey, Vincent J. and Gentleman, Robert and Anders, Simon and Carlson, Marc and Carvalho, Benilton S. and Bravo, Hector Corrada and Davis, Sean and Gatto, Laurent and Girke, Thomas and Gottardo, Raphael and Hahne, Florian and Hansen, Kasper D. and Irizarry, Rafael A. and Lawrence, Michael and Love, Michael I. and MacDonald, James and Obenchain, Valerie and Oleś, Andrzej K. and Pagès, Hervé and Reyes, Alejandro and Shannon, Paul and Smyth, Gordon K. and Tenenbaum, Dan and Waldron, Levi and Morgan, Martin},
+	month = jan,
+	year = {2015},
+	pmcid = {PMC4509590},
+	keywords = {Methodology},
+	pages = {115--121}
+}
+
+@article{knuth_literate_1984,
+	title = {Literate {Programming}},
+	volume = {27},
+	issn = {0010-4620},
+	url = {https://doi.org/10.1093/comjnl/27.2.97},
+	doi = {10.1093/comjnl/27.2.97},
+	abstract = {The author and his associates have been experimenting for the past several years with a programming language and documentation system called WEB. This paper presents WEB by example, and discusses why the new system appears to be an improvement over previous ones.},
+	number = {2},
+	urldate = {2025-06-13},
+	journal = {The Computer Journal},
+	author = {Knuth, D. E.},
+	month = jan,
+	year = {1984},
+	pages = {97--111}
+}
+
+@article{markowetz_five_2015,
+	title = {Five selfish reasons to work reproducibly.},
+	volume = {16},
+	doi = {10.1186/s13059-015-0850-7},
+	abstract = {And so, my fellow scientists: ask not what you can do for reproducibility; ask what reproducibility can do for you! Here, I present five reasons why working reproducibly pays off in the long run and is in the self-interest of every ambitious, career-oriented scientist.},
+	language = {English},
+	number = {1},
+	journal = {Genome Biology},
+	author = {Markowetz, Florian},
+	month = dec,
+	year = {2015},
+	pmcid = {PMC4673789},
+	keywords = {Methodology, reproducible research},
+	pages = {274}
+}
+
+@article{tautenhahn_highly_2008,
+	title = {Highly sensitive feature detection for high resolution {LC}/{MS}.},
+	volume = {9},
+	doi = {10.1186/1471-2105-9-504},
+	abstract = {BACKGROUND:Liquid chromatography coupled to mass spectrometry (LC/MS) is an important analytical technology for e.g. metabolomics experiments. Determining the boundaries, centres and intensities of the two-dimensional signals in the LC/MS raw data is called feature detection. For the subsequent analysis of complex samples such as plant extracts, which may contain hundreds of compounds, corresponding to thousands of features -- a reliable feature detection is mandatory.RESULTS:We developed a new feature detection algorithm centWave for high-resolution LC/MS data sets, which collects regions of interest (partial mass traces) in the raw-data, and applies continuous wavelet transformation and optionally Gauss-fitting in the chromatographic domain. We evaluated our feature detection algorithm on dilution series and mixtures of seed and leaf extracts, and estimated recall, precision and F-score of seed and leaf specific features in two experiments of different complexity.CONCLUSION:The new feature detection algorithm meets the requirements of current metabolomics experiments. centWave can detect close-by and partially overlapping features and has the highest overall recall and precision values compared to the other algorithms, matchedFilter (the original algorithm of XCMS) and the centroidPicker from MZmine. The centWave algorithm was integrated into the Bioconductor R-package XCMS and is available from (http://www.bioconductor.org/).},
+	language = {English},
+	number = {1},
+	journal = {BMC Bioinformatics},
+	author = {Tautenhahn, Ralf and Böttcher, Christoph and Neumann, Steffen},
+	year = {2008},
+	pmcid = {PMC2639432},
+	keywords = {Methodology, Alignment, Data analysis, Mass Spectrometry, Metabolomics},
+	pages = {504}
+}
+
+@article{smith_lc-ms_2013,
+	title = {{LC}-{MS} alignment in theory and practice: a comprehensive algorithmic review.},
+	volume = {16},
+	doi = {10.1093/bib/bbt080},
+	abstract = {Liquid chromatography-mass spectrometry is widely used for comparative replicate sample analysis in proteomics, lipidomics and metabolomics. Before statistical comparison, registration must be established to match corresponding analytes from run to run. Alignment, the most popular correspondence approach, consists of constructing a function that warps the content of runs to most closely match a given reference sample. To date, dozens of correspondence algorithms have been proposed, creating a daunting challenge for practitioners in algorithm selection. Yet, existing reviews have highlighted only a few approaches. In this review, we describe 50 correspondence algorithms to facilitate practical algorithm selection. We elucidate the motivation for correspondence and analyze the limitations of current approaches, which include prohibitive runtimes, numerous user parameters, model limitations and the need for reference samples. We suggest and describe a paradigm shift for overcoming current correspondence limitations by building on known liquid chromatography-mass spectrometry behavior.},
+	language = {English},
+	number = {1},
+	journal = {Briefings in bioinformatics},
+	author = {Smith, Rob and Ventura, Dan and Prince, John T.},
+	month = nov,
+	year = {2013},
+	keywords = {Methodology, Alignment, Data analysis, Mass Spectrometry, Metabolomics},
+	pages = {bbt080--117}
 }
