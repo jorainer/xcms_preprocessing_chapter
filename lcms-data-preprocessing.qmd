@@ -10,6 +10,9 @@ editor: source
 date: 'Compiled: `r format(Sys.Date(), "%B %d, %Y")`'
 bibliography: lcms-data-preprocessing.bib
 csl: lcms-data-preprocessing.csl
+knitr:
+  opts_chunk:
+    fig.path: "images/"
 ---
 
 ```{r setup, include=FALSE}
@@ -354,12 +357,12 @@ optimization of parameter settings for robust peak detection and alignment.
    would sum-up all intensities per spectrum, hence generating a total ion
    chromatogram (TIC).
 
-```{r}
+```{r Figure-1}
 #' Create a BPC
 bpc <- chromatogram(ms_data, aggregationFun = "max", chunkSize = CORES)
 
 #' Plot the BPC
-plot(bpc, col = paste0(col_sample, 80))
+plot(bpc, col = paste0(col_sample, 80), main = "")
 grid()
 abline(v = c(15, 225), lty = 2)
 legend("topright", col = col_concentration, lty = 1,
@@ -408,7 +411,7 @@ proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
 
 5) Extract and plot the EIC of proline.
 
-```{r}
+```{r Figure-2}
 #' Extract the EIC for proline
 proline_eic <- chromatogram(ms_data, mz = proline_mzr,
                             rt = c(160, 200), chunkSize = CORES)
@@ -427,7 +430,7 @@ grid()
    parameter `rt` of the `chromatogram()` function and extract the ion trace for
    the full full retention time range.
 
-```{r}
+```{r Figure-3}
 #' Extract the EIC for an unknown compound
 unknown_eic <- chromatogram(ms_data, mz = c(106.0399, 106.0599),
                             chunkSize = CORES)
@@ -445,7 +448,7 @@ grid()
    readability of the code, the R *pipe operator* (`|>`) is used to
    concatenate subsequent function calls.
 
-```{r}
+```{r Figure-4}
 #' Check if data is in centroid mode
 ms_data_proline <- ms_data[1] |>
     filterSpectra(filterRt, c(167, 172)) |>
@@ -521,7 +524,7 @@ proline_eic <- findChromPeaks(proline_eic, param = cwp)
 2) Plot and visually inspect the chromatographic peak detection results of the
    EIC.
 
-```{r}
+```{r Figure-5}
 #' Plot the proline EIC after peak detections
 plot(proline_eic,
      peakCol = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 80),
@@ -724,7 +727,7 @@ ms_data <- adjustRtime(ms_data, param = pgp, chunkSize = CORES)
    time range. If needed, adapt parameters and repeat the initial correspondence
    and alignment.
 
-```{r}
+```{r Figure-6}
 #' Plot the adjusted rt vs. rt differences before and after correction
 plotAdjustedRtime(ms_data, col = paste0(col_sample, 80))
 grid()
@@ -733,22 +736,27 @@ grid()
 4) Create the BPC after retention time alignment to visually compare with the
    original BPC.
 
-```{r}
+```{r Figure-7}
+#| fig-width: 7
+#| fig-height: 10
 #' Create the BPC after rt alignment
 bpc_adj <- chromatogram(ms_data, chromPeaks = "none", aggregationFun = "max",
                         chunkSize = CORES)
 
 #' Plot before and after rt alignment
 par(mfrow = c(2, 1))
-plot(bpc, col = paste0(col_sample, 60))
+plot(bpc, col = paste0(col_sample, 60), main = "raw data")
 grid()
-plot(bpc_adj, col = paste0(col_sample, 60))
+plot(bpc_adj, col = paste0(col_sample, 60),
+     main = "aligned data")
 grid()
 ```
 
 5) Evaluate improved retention time alignment on each EICs.
 
-```{r}
+```{r Figure-8}
+#| fig-width: 7
+#| fig-height: 10
 #' Extract the EIC for proline with corrected rt
 proline_eic_adj <- chromatogram(ms_data, mz = proline_mzr,
                                 chunkSize  = CORES)
@@ -786,7 +794,7 @@ depends on similarity of the peaks' *m/z* and retention time values.
    grouping. Plot the resulting EIC and simulate a correspondence analysis with
    the defined configuration.
 
-```{r}
+```{r Figure-9}
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr, chunkSize = CORES)
 
@@ -824,7 +832,7 @@ ms_data <- groupChromPeaks(ms_data, param = pdp)
    `plotChromPeakDensity()`. Use parameter `simulate = FALSE` to show the actual
    correspondence results. Repeat for all *m/z* ranges from **Section 3.2.3**.
 
-```{r}
+```{r Figure-10}
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr, chunkSize = CORES)
 
@@ -840,7 +848,7 @@ grid()
    setup. Use `ylim = range(unlist(mz(spectra(ms_data))))` to calculate it from
    the data set.
 
-```{r}
+```{r Figure-11}
 #' Plot m/z vs. rt for the data set
 plot(NA, NA, xlim = range(rtime(spectra(ms_data))),
      ylim = c(0, 1000),
