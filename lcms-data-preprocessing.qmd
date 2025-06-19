@@ -339,13 +339,17 @@ chromatograms (EICs), enabling the identification of poorly acquired samples,
 retention time regions with meaningful signal, and potential contaminants. We
 also verify whether the data was acquired in centroid mode, a requirement for
 peak detection, and extract signal characteristics such as chromatographic peak
-width and *m/z* mass deviation using the example compounds. While for the
-present example we extract the EIC only for proline, a metabolite that is known
-to be present in human serum samples, for real experiments signal for multiple
-compounds or ions, ideally from retention time regions along the full retention
-time range, should be extracted and their signal evaluated. These initial steps
-help ensure that the data is suitable for automated processing and allow
-optimization of parameter settings for robust peak detection and alignment.
+width and *m/z* mass deviation using the example compounds. An EIC visualizes
+the measured signal (intensity) for a particular ion of a compound along the
+retention time axis. It shows the elution pattern of the ion and allows to
+inspect the number of available data points and the shape of the elution
+pattern. While for the present example we extract the EIC only for proline, a
+metabolite that is known to be present in human serum samples, for real
+experiments signal for multiple compounds or ions, ideally from retention time
+regions along the full retention time range, should be extracted and their
+signal evaluated. These initial steps help ensure that the data is suitable for
+automated processing and allow optimization of parameter settings for robust
+peak detection and alignment.
 
 ### 3.2.1 Visualize base peak chromatogram
 
@@ -358,6 +362,8 @@ optimization of parameter settings for robust peak detection and alignment.
    chromatogram (TIC).
 
 ```{r Figure-1}
+#| fig-cap: "Base peak chromatogram of the full data set. Most signals are present between 15 and 225 seconds."
+
 #' Create a BPC
 bpc <- chromatogram(ms_data, aggregationFun = "max", chunkSize = CORES)
 
@@ -391,13 +397,14 @@ bpc <- chromatogram(ms_data, aggregationFun = "max", chunkSize = CORES)
 
 ### 3.2.3 Extracted-ion chromatogram selection
 
-4) Determine the *m/z* range for proline. Starting from its chemical formula,
-   calculate the theoretical mass and subsequently the theoretical *m/z* for one
-   of its ions. We use `"[M+H]+"` as the most likely adduct of proline in
-   positive polarity, but could also specify any other possible adduct, such as
-   `"[M+Na]+`, `"[M+NH4]+` etc. Create a range around the theoretical *m/z* by
-   subtracting and adding a value of 0.01 Da. Depending on the accuracy and
-   precision of the MS instrument, this value might be increased or decreased.
+4) Determine the *m/z* range for proline. Starting from its chemical formula
+   C5H9NO2, calculate the theoretical mass and subsequently the theoretical
+   *m/z* for one of its ions. We use `"[M+H]+"` as the most likely adduct of
+   proline in positive polarity, but could also specify any other possible
+   adduct, such as `"[M+Na]+`, `"[M+NH4]+` etc. Create a range around the
+   theoretical *m/z* by subtracting and adding a value of 0.01 Da. Depending on
+   the accuracy and precision of the MS instrument, this value might be
+   increased or decreased.
 
 ```{r}
 #' Calculate the mass of proline
@@ -412,6 +419,8 @@ proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
 5) Extract and plot the EIC of proline.
 
 ```{r Figure-2}
+#| fig-cap: "EIC for proline."
+
 #' Extract the EIC for proline
 proline_eic <- chromatogram(ms_data, mz = proline_mzr,
                             rt = c(160, 200), chunkSize = CORES)
@@ -424,13 +433,15 @@ grid()
 6) Repeat this for minimum 10 compounds and save the EIC objects. Inspect
    molecules that you have spiked (e.g., internal standards), are known to be
    endogenously present (e.g., amino acids in serum), or select unknown
-   compounds (*see* **Note 6**). Be aware to select compouds with retention time
-   and *m/z* values representing the full chromatogram and mass spectrum range,
-   respectively. If the expected retention time range is unknown, omit the
-   parameter `rt` of the `chromatogram()` function and extract the ion trace for
-   the full full retention time range.
+   compounds (*see* **Note 6**). Be aware to select compounds with retention
+   time and *m/z* values representing the full chromatogram and mass spectrum
+   range, respectively. If the expected retention time range is unknown, omit
+   the parameter `rt` of the `chromatogram()` function and extract the ion trace
+   for the full full retention time range.
 
 ```{r Figure-3}
+#| fig-cap: "Signal trace for ions with an *m/z* between 106.039 and 106.059."
+
 #' Extract the EIC for an unknown compound
 unknown_eic <- chromatogram(ms_data, mz = c(106.0399, 106.0599),
                             chunkSize = CORES)
@@ -442,13 +453,15 @@ grid()
 
 ### 3.2.4 Check *m/z* data acquisition mode
 
-7) Evaluate whether data is acquired in centroid mode in the first sample, using
-   proline (*see* **Note 7**). In addition, determine the variance in peaks'
+7) Evaluate whether data is acquired in centroid (*see* **Note 7**) mode in the
+   first sample, using proline. In addition, determine the variance in peaks'
    *m/z* along the retention time axis for individual ions. For better
-   readability of the code, the R *pipe operator* (`|>`) is used to
-   concatenate subsequent function calls.
+   readability of the code, the R *pipe operator* (`|>`) is used to concatenate
+   subsequent function calls.
 
 ```{r Figure-4}
+#| fig-cap: "All mass peaks reported within a *m/z* window from 116.07 and 116.072 and a retention time window from 167 to 172 seconds in one sample."
+
 #' Check if data is in centroid mode
 ms_data_proline <- ms_data[1] |>
     filterSpectra(filterRt, c(167, 172)) |>
@@ -525,6 +538,8 @@ proline_eic <- findChromPeaks(proline_eic, param = cwp)
    EIC.
 
 ```{r Figure-5}
+#| fig-cap: "EIC of proline with the area of identified chromatographic peaks indicated with the sample's color."
+
 #' Plot the proline EIC after peak detections
 plot(proline_eic,
      peakCol = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 80),
@@ -728,6 +743,8 @@ ms_data <- adjustRtime(ms_data, param = pgp, chunkSize = CORES)
    and alignment.
 
 ```{r Figure-6}
+#| fig-cap: "Visualization of retention time alignment results. The largest retention time differences accounted for by the alignment are of approximately 6 seconds, observed between two samples. For all other samples, differences are below 1 second. Strongest adjustments were performed in the retention time region between 50 and 100 seconds."
+
 #' Plot the adjusted rt vs. rt differences before and after correction
 plotAdjustedRtime(ms_data, col = paste0(col_sample, 80))
 grid()
@@ -737,6 +754,8 @@ grid()
    original BPC.
 
 ```{r Figure-7}
+#| fig-cap: "BPC before and after retention time alignment. A small improvement can be observed."
+
 #| fig-width: 7
 #| fig-height: 10
 #' Create the BPC after rt alignment
@@ -755,6 +774,8 @@ grid()
 5) Evaluate improved retention time alignment on each EICs.
 
 ```{r Figure-8}
+#| fig-cap: "Alignment results evaluated for signal of proline. Shown is the EIC for proline before (upper panel) and after (lower panel) alignment. Retention time alignment reduced observed retention time shifts consiberably."
+
 #| fig-width: 7
 #| fig-height: 10
 #' Extract the EIC for proline with corrected rt
@@ -795,6 +816,8 @@ depends on similarity of the peaks' *m/z* and retention time values.
    the defined configuration.
 
 ```{r Figure-9}
+#| fig-cap: Visualization of peak grouping using the *peak density* method. Upper panel: signal for ions with an *m/z* between 116.06 and 116.08 along the full retention time range. Lower panel: retention time of identified chromatographic peak apexes (x-axis) in the different samples of the experiment (y-axis). The solid black line represents the *peak density* curve along the retention time. Chromatographic peaks within the same density peak are grouped into a feature. Chromatographic peaks grouped into the same feature are indicated with a grey rectangle.
+
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr, chunkSize = CORES)
 
@@ -833,6 +856,8 @@ ms_data <- groupChromPeaks(ms_data, param = pdp)
    correspondence results. Repeat for all *m/z* ranges from **Section 3.2.3**.
 
 ```{r Figure-10}
+#| fig-cap: "Correspondence analysis results for the *m/z* window containing signal of proline."
+
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr, chunkSize = CORES)
 
@@ -1060,9 +1085,12 @@ BiocManager::install("BiocStyle")
    to derive retention time and *m/z* parameters empirically.
 
 7) Accurate peak detection, in particular with the *centWave* algorithm,
-   requires centroided data. If your data is not centroided, use MSConvert or a
-   similar tool to convert profile mode data to centroid mode before importing
-   it into R.
+   requires centroided data. MS instruments allow to acquire data in profile or
+   centroid mode. For profile mode all measured mass peaks in a spectrum are
+   reported, while in centroid mode the data is reduced to a single
+   representative mass peak for signal of one ion in a spectrum. If your data is
+   not centroided, use MSConvert or a similar tool to convert profile mode data
+   to centroid mode before importing it into R.
 
 8) The *m/z* mass deviation is expressed as ppm and not in *m/z* difference (in
    Da) because the variation scales with the molecular mass of the compound. It
