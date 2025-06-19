@@ -398,12 +398,12 @@ bpc <- chromatogram(ms_data, aggregationFun = "max", chunkSize = CORES)
 ### 3.2.3 Extracted-ion chromatogram selection
 
 4) Determine the *m/z* range for proline. Starting from its chemical formula
-   C5H9NO2, calculate the theoretical mass and subsequently the theoretical
-   *m/z* for one of its ions. We use `"[M+H]+"` as the most likely adduct of
-   proline in positive polarity, but could also specify any other possible
-   adduct, such as `"[M+Na]+`, `"[M+NH4]+` etc. Create a range around the
-   theoretical *m/z* by subtracting and adding a value of 0.01 Da. Depending on
-   the accuracy and precision of the MS instrument, this value might be
+   C5H9NO2, calculate the theoretical isotopic mass and subsequently the
+   theoretical *m/z* for one of its ions. We use `"[M+H]+"` as the most likely
+   adduct of proline in positive polarity, but could also specify any other
+   possible adduct, such as `"[M+Na]+`, `"[M+NH4]+` etc. Create a range around
+   the theoretical *m/z* by subtracting and adding a value of 0.01 Da. Depending
+   on the accuracy and precision of the MS instrument, this value might be
    increased or decreased.
 
 ```{r}
