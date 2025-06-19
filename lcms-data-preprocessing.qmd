@@ -755,7 +755,6 @@ grid()
 
 ```{r Figure-7}
 #| fig-cap: "BPC before and after retention time alignment. A small improvement can be observed."
-
 #| fig-width: 7
 #| fig-height: 10
 #' Create the BPC after rt alignment
@@ -775,7 +774,6 @@ grid()
 
 ```{r Figure-8}
 #| fig-cap: "Alignment results evaluated for signal of proline. Shown is the EIC for proline before (upper panel) and after (lower panel) alignment. Retention time alignment reduced observed retention time shifts consiberably."
-
 #| fig-width: 7
 #| fig-height: 10
 #' Extract the EIC for proline with corrected rt
@@ -816,7 +814,7 @@ depends on similarity of the peaks' *m/z* and retention time values.
    the defined configuration.
 
 ```{r Figure-9}
-#| fig-cap: Visualization of peak grouping using the *peak density* method. Upper panel: signal for ions with an *m/z* between 116.06 and 116.08 along the full retention time range. Lower panel: retention time of identified chromatographic peak apexes (x-axis) in the different samples of the experiment (y-axis). The solid black line represents the *peak density* curve along the retention time. Chromatographic peaks within the same density peak are grouped into a feature. Chromatographic peaks grouped into the same feature are indicated with a grey rectangle.
+#| fig-cap: "Visualization of peak grouping using the *peak density* method. Upper panel: signal for ions with an *m/z* between 116.06 and 116.08 along the full retention time range. Lower panel: retention time of identified chromatographic peak apexes (x-axis) in the different samples of the experiment (y-axis). The solid black line represents the *peak density* curve along the retention time. Chromatographic peaks within the same density peak are grouped into a feature. Chromatographic peaks grouped into the same feature are indicated with a grey rectangle."
 
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr, chunkSize = CORES)
