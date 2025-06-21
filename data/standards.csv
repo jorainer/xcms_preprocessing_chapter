@@ -1,0 +1,14 @@
+﻿name,hmdb_id,formula,expected_ion,expected_rt
+N-Acetyl-beta-alanine,HMDB0061880,C5H9NO3,[M+H]+,37
+Acetylneuraminic Acid,HMDB0000230,C11H19NO9,[M+H-H4O2]+,180
+Dopamine,HMDB0000073,C8H11NO2,[M+H]+,140
+"Fructose-1,6-Diphosphate",HMDB0001058,C6H14O12P2,[M+H-H2O]+,330
+Indoleacetic acid,HMDB0000197,C10H9NO2,[M+H]+,35
+1-Methylhistidine,HMDB0000001,C7H11N3O2,[M+H]+,182
+8-Oxo-2-Deoxyguanosine,HMDB0003333,C10H13N5O5,[M+H]+,159
+Pantothenic Acid,HMDB0000210,C9H17NO5,[M+H]+,38
+Phenylacetic acid,HMDB0000209,C8H8O2,[M+H]+,33
+Phosphorylcholine,HMDB0001565,C5H14NO4P,[M+H]+,195
+Sorbitol,HMDB0000247,C6H14O6,[M+Na]+,165
+Spermine,HMDB0001256,C10H26N4,[M+H]+,204
+Uridine,HMDB0000296,C9H12N2O6,[M+H]+,124

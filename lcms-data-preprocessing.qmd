@@ -244,7 +244,6 @@ analysis.
 library(xcms)
 library(MsExperiment)
 library(Spectra)
-library(readxl)
 library(RColorBrewer)
 library(pheatmap)
 library(MetaboCoreUtils)
@@ -283,12 +282,12 @@ if (.Platform$OS.type == "unix") {
    technical/experimental properties. Ideally, the order of the samples should
    match their injection sequence. The content of the spreadsheet for the
    present experiment is shown in **Table 1**. Load the experiment's spreadsheet
-   using the `read_xlsx()` function from the *readxl* R package (*see*
+   using the `read.csv()` function from the *data.table* R package (*see*
    **Note 4**).
 
 ```{r}
 #' Import sample file
-sample_data <- read_xlsx("data/standards_mzml.xlsx") |> as.data.frame()
+sample_data <- read.csv("data/standards_mzml.csv")
 ```
 
 4) Create a *data representation* for the experiment. The `readMsExperiment()`
@@ -1066,8 +1065,7 @@ install.packages("BiocManager")
 BiocManager::install("BiocStyle")
 ```
 
-4) Alternatively to using the `read_xlsx()` function from the *readxl* R
-   package, the same tabular information could also be defined directly in R as
+4) The same tabular information could also be defined directly in R as
    a `data.frame` object, but it is generally better, and more convenient to the
    user, to define and load such spreadsheet from as spreadsheet program.
 
