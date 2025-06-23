@@ -127,7 +127,6 @@ untargeted metabolomics study. It can be found on the MetaboLights
 [@yurekten_metabolights_2024] repository (accession: *MTBLSXX*) and can be 
 downloaded from the archive for use in this tutorial.
 
-[@yurekten_metabolights_2024] and is also available as part of the *xcms*
 Samples were analyzed using HILIC UPLC-QTOF-MS in
 positive ionization modes, as described in [@volani_vams-based_2023]. Raw data
 files are provided in the open and vendor-independent .mzML format (*see* **Note
@@ -1065,9 +1064,12 @@ install.packages("BiocManager")
 BiocManager::install("BiocStyle")
 ```
 
-4) The same tabular information could also be defined directly in R as
-   a `data.frame` object, but it is generally better, and more convenient to the
-   user, to define and load such spreadsheet from as spreadsheet program.
+4) The user can also read Excel (`.xlsx`) files using the `read_xlsx()`
+   function from the `readxl` R package. However, the resulting object should 
+   be converted into a `data.frame` using `as.data.frame()` before beginning 
+   the analysis. Alternatively, the same tabular data can be created directly 
+   in R as a `data.frame`, but it is usually more practical and user-friendly 
+   to define and load the spreadsheet using a spreadsheet program.
 
 5) For improved visualization, it is recommended to assign specific colors to
    individual samples as well as to sample groups. These color settings can be
