@@ -23,11 +23,9 @@ knitr::opts_knit$set(root.dir = './')
 
 # Abstract
 
-*#FINDME 200 words. open access, teaser. @phili: ok?**
-
-Liquid chromatography-mass spectrometry (LC-MS) is a cornerstone technology in
+Liquid chromatography-mass spectrometry (LC-MS) is a key technology in
 metabolomics, enabling high-throughput detection of small molecules across
-diverse biological samples. However, raw LC-MS data are complex, requiring
+diverse biological samples. However, raw LC-MS data is complex, requiring
 careful preprocessing to ensure accurate and reproducible feature
 detection. This chapter introduces a step-by-step protocol for LC-MS data
 preprocessing using the open-source *xcms* package in R. Designed for users
@@ -125,7 +123,11 @@ to adapt them to the experiment.
 ## 2.2 Data set
 
 The LC-MS data used in this chapter comes from a small, publicly available
-untargeted metabolomics study. Samples were analyzed using HILIC UPLC-QTOF-MS in
+untargeted metabolomics study. It can be found on the MetaboLights 
+[@yurekten_metabolights_2024] repository (accession: *MTBLSXX*) and can be 
+downloaded from the archive for use in this tutorial.
+
+Samples were analyzed using HILIC UPLC-QTOF-MS in
 positive ionization modes, as described in [@volani_vams-based_2023]. Raw data
 files are provided in the open and vendor-independent .mzML format (*see* **Note
 2**).
@@ -140,10 +142,6 @@ Additionally, two LC-MS/MS runs were acquired for one of the high concentration
 samples using data-dependent acquisition (DDA) at two different collision
 energies (20 eV and 30 eV). These are included to support downstream MS/MS-based
 compound annotation (Table 1).
-
-The data set is publicly available on MetaboLights (accession: *MTBLSXX [FINDME
-@phili: deposit and add name]*) and can be downloaded from the archive for
-use in this tutorial.
 
 **Table 1**. Experimental design of the small untargeted metabolomics data set.
 
@@ -245,7 +243,6 @@ analysis.
 library(xcms)
 library(MsExperiment)
 library(Spectra)
-library(readxl)
 library(RColorBrewer)
 library(pheatmap)
 library(MetaboCoreUtils)
@@ -284,12 +281,12 @@ if (.Platform$OS.type == "unix") {
    technical/experimental properties. Ideally, the order of the samples should
    match their injection sequence. The content of the spreadsheet for the
    present experiment is shown in **Table 1**. Load the experiment's spreadsheet
-   using the `read_xlsx()` function from the *readxl* R package (*see*
+   using the `read.csv()` function from the *data.table* R package (*see*
    **Note 4**).
 
 ```{r}
 #' Import sample file
-sample_data <- read_xlsx("data/standards_mzml.xlsx") |> as.data.frame()
+sample_data <- read.csv("data/standards_mzml.csv")
 ```
 
 4) Create a *data representation* for the experiment. The `readMsExperiment()`
@@ -314,7 +311,7 @@ ms_data <- readMsExperiment(file.path(MZML_PATH, sample_data$mzML),
    `sampleData()` function.
 
 ```{r}
-#| tbl-cap: "Data files and samples."
+#| tbl-cap: "Table 2: Data files and samples."
 
 #' View the sample information table
 sampleData(ms_data)[, c("mzML", "sample_name", "mode", "collision_energy",
@@ -334,27 +331,26 @@ col_sample <- col_concentration[sampleData(ms_data)$concentration]
 
 Before initiating the preprocessing of LC-MS data, it is essential to evaluate
 the overall data quality and define key parameters. In this section, we perform
-the visual inspection of the chromatographic base peak and extracted-ion
+the visual inspection of the base peak chromatogram (BPC) and extracted-ion
 chromatograms (EICs), enabling the identification of poorly acquired samples,
 retention time regions with meaningful signal, and potential contaminants. We
 also verify whether the data was acquired in centroid mode, a requirement for
 peak detection, and extract signal characteristics such as chromatographic peak
 width and *m/z* mass deviation using the example compounds. An EIC visualizes
 the measured signal (intensity) for a particular ion of a compound along the
-retention time axis. It shows the elution pattern of the ion and allows to
-inspect the number of available data points and the shape of the elution
-pattern. While for the present example we extract the EIC only for proline, a
-metabolite that is known to be present in human serum samples, for real
-experiments signal for multiple compounds or ions, ideally from retention time
-regions along the full retention time range, should be extracted and their
-signal evaluated. These initial steps help ensure that the data is suitable for
-automated processing and allow optimization of parameter settings for robust
-peak detection and alignment.
+retention time axis. It allows inspection of the number of available data 
+points and the shape of the elution pattern. While for the present example we 
+extract the EIC only for proline, a metabolite that is known to be present in 
+human serum samples, for real experiments signal for multiple compounds or 
+ions, ideally from retention time regions along the full retention time range, 
+should be extracted and their signal evaluated. These initial steps help ensure
+that the data is suitable for automated processing and allow optimization of 
+parameter settings for robust peak detection and alignment.
 
 ### 3.2.1 Visualize base peak chromatogram
 
-1) Create a base peak chromatogram (BPC) of the full data set and plot it. The
-   BPC is plotted to assess chromatographic drift or shifts, sample quality or
+1) Create a base peak chromatogram of the full data set and plot it. The BPC is
+   plotted to assess chromatographic drift or shifts, sample quality or 
    outliers, and the presence of systematic noise or chemical contamination
    (e.g., polymer peaks). With parameter `aggregationFun = "max"` the highest
    intensity per spectrum is reported, while setting `aggregationFun = "sum"`
@@ -362,7 +358,7 @@ peak detection and alignment.
    chromatogram (TIC).
 
 ```{r Figure-1}
-#| fig-cap: "Base peak chromatogram of the full data set. Most signals are present between 15 and 225 seconds."
+#| fig-cap: "Figure 1: Base peak chromatogram of the full data set. Most signals are present between 15 and 225 seconds."
 
 #' Create a BPC
 bpc <- chromatogram(ms_data, aggregationFun = "max", chunkSize = CORES)
@@ -419,7 +415,7 @@ proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
 5) Extract and plot the EIC of proline.
 
 ```{r Figure-2}
-#| fig-cap: "EIC for proline."
+#| fig-cap: "Figure 2: EIC for proline."
 
 #' Extract the EIC for proline
 proline_eic <- chromatogram(ms_data, mz = proline_mzr,
@@ -440,7 +436,7 @@ grid()
    for the full full retention time range.
 
 ```{r Figure-3}
-#| fig-cap: "Signal trace for ions with an *m/z* between 106.039 and 106.059."
+#| fig-cap: "Figure 3: Signal trace for ions with an *m/z* between 106.039 and 106.059."
 
 #' Extract the EIC for an unknown compound
 unknown_eic <- chromatogram(ms_data, mz = c(106.0399, 106.0599),
@@ -460,7 +456,7 @@ grid()
    subsequent function calls.
 
 ```{r Figure-4}
-#| fig-cap: "All mass peaks reported within a *m/z* window from 116.07 and 116.072 and a retention time window from 167 to 172 seconds in one sample."
+#| fig-cap: "Figure 4: All mass peaks reported within a *m/z* window from 116.07 and 116.072 and a retention time window from 167 to 172 seconds in one sample."
 
 #' Check if data is in centroid mode
 ms_data_proline <- ms_data[1] |>
@@ -538,7 +534,7 @@ proline_eic <- findChromPeaks(proline_eic, param = cwp)
    EIC.
 
 ```{r Figure-5}
-#| fig-cap: "EIC of proline with the area of identified chromatographic peaks indicated with the sample's color."
+#| fig-cap: "Figure 5: EIC of proline with the area of identified chromatographic peaks indicated with the sample's color."
 
 #' Plot the proline EIC after peak detections
 plot(proline_eic,
@@ -623,6 +619,7 @@ ms_data <- refineChromPeaks(ms_data, param = mnpp, chunkSize = CORES)
    the quantiles of retention time widths and *m/z* widths.
 
 ```{r}
+#| fig-cap: "Table 3: Summary of peaks count per sample." 
 #' View summary of identified peaks
 data.frame(sample_name = sampleData(ms_data)$sample_name,
            peak_count = as.integer(table(chromPeaks(ms_data)[, "sample"]))) |>
@@ -672,20 +669,21 @@ anchor peaks.
    method. Define the sample groups of the experiment and exclude samples that
    should not be considered for peak grouping/alignment by assigning `NA`. In
    the present example LC-MS/MS measurements are excluded. Set parameters
-   `minFraction` depending on the experimental setting. We use `minFraction =
-   2/3`, thus, to define a feature, a chromatographic peak has to be present in
-   at least two out of the 3 samples per sample group. Parameters `binSize` and
-   `ppm` depend on the resolution of the MS instrumentation and proper
-   calibration across measurement runs. Chromatographic peaks (within and
-   between samples) with a difference in *m/z* value smaller than `binSize` +
-   `ppm` of the peaks' *m/z* will be grouped into a feature. Choices should
-   depend on the maximal expected absolute difference of *m/z* values for
-   signals of the same compound in different sample runs. Parameter `ppm` allows
-   to account for the *m/z*-dependent measurement error frequently observed on
-   TOF-based instruments. The value for parameter `bw` depends on the observed
-   difference of retention times between isomers as well as retention time
-   shifts between samples. For this initial correspondence analysis it should be
-   set to a larger value to allow/account for retention time differences between
+   `minFraction` depending on the experimental setting.
+   We use `minFraction = 2/3`, thus, to define a feature, a chromatographic
+   peak has to be present in at least two out of the 3 samples per sample
+   group. Parameters `binSize` and `ppm` depend on the resolution of the MS
+   instrumentation and proper calibration across measurement runs.
+   Chromatographic peaks (within and between samples) with a difference in 
+   *m/z* value smaller than `binSize` + `ppm` of the peaks' *m/z* will be
+   grouped into a feature. Choices should depend on the maximal expected
+   absolute difference of *m/z* values for signals of the same compound in
+   different sample runs. Parameter `ppm` allows to account for the
+   *m/z*-dependent measurement error frequently observed on TOF-based
+   instruments. The value for parameter `bw` depends on the observed difference
+   of retention times between isomers as well as retention time shifts between
+   samples. For this initial correspondence analysis it should be set to a
+   larger value to allow/account for retention time differences between
    samples. A value close to or larger than the average observed retention time
    width of detected chromatographic peaks could be a good initial choice.
 
@@ -743,7 +741,7 @@ ms_data <- adjustRtime(ms_data, param = pgp, chunkSize = CORES)
    and alignment.
 
 ```{r Figure-6}
-#| fig-cap: "Visualization of retention time alignment results. The largest retention time differences accounted for by the alignment are of approximately 6 seconds, observed between two samples. For all other samples, differences are below 1 second. Strongest adjustments were performed in the retention time region between 50 and 100 seconds."
+#| fig-cap: "Figure 6: Visualization of retention time alignment results. The largest retention time differences accounted for by the alignment are of approximately 6 seconds, observed between two samples. For all other samples, differences are below 1 second. Strongest adjustments were performed in the retention time region between 50 and 100 seconds."
 
 #' Plot the adjusted rt vs. rt differences before and after correction
 plotAdjustedRtime(ms_data, col = paste0(col_sample, 80))
@@ -754,7 +752,7 @@ grid()
    original BPC.
 
 ```{r Figure-7}
-#| fig-cap: "BPC before and after retention time alignment. A small improvement can be observed."
+#| fig-cap: "Figure 7: BPC before and after retention time alignment. A small improvement can be observed."
 #| fig-width: 7
 #| fig-height: 10
 #' Create the BPC after rt alignment
@@ -773,7 +771,7 @@ grid()
 5) Evaluate improved retention time alignment on each EICs.
 
 ```{r Figure-8}
-#| fig-cap: "Alignment results evaluated for signal of proline. Shown is the EIC for proline before (upper panel) and after (lower panel) alignment. Retention time alignment reduced observed retention time shifts consiberably."
+#| fig-cap: "Figure 8: Alignment results evaluated for signal of proline. Shown is the EIC for proline before (upper panel) and after (lower panel) alignment. Retention time alignment reduced observed retention time shifts consiberably."
 #| fig-width: 7
 #| fig-height: 10
 #' Extract the EIC for proline with corrected rt
@@ -800,7 +798,7 @@ ms_data <- applyAdjustedRtime(ms_data)
 ### 3.3.3 Correspondence analysis
 
 Correspondence analysis groups signals (chromatographic peaks) across samples
-that are presumably from the same original ions (compounds). This grouping
+that are presumably from the same original ion. This grouping
 depends on similarity of the peaks' *m/z* and retention time values.
 
 1) Derive settings for correspondence analysis. Extract the signal trace for the
@@ -814,7 +812,7 @@ depends on similarity of the peaks' *m/z* and retention time values.
    the defined configuration.
 
 ```{r Figure-9}
-#| fig-cap: "Visualization of peak grouping using the *peak density* method. Upper panel: signal for ions with an *m/z* between 116.06 and 116.08 along the full retention time range. Lower panel: retention time of identified chromatographic peak apexes (x-axis) in the different samples of the experiment (y-axis). The solid black line represents the *peak density* curve along the retention time. Chromatographic peaks within the same density peak are grouped into a feature. Chromatographic peaks grouped into the same feature are indicated with a grey rectangle."
+#| fig-cap: "Figure 9: Visualization of peak grouping using the *peak density* method. Upper panel: signal for ions with an *m/z* between 116.06 and 116.08 along the full retention time range. Lower panel: retention time of identified chromatographic peak apexes (x-axis) in the different samples of the experiment (y-axis). The solid black line represents the *peak density* curve along the retention time. Chromatographic peaks within the same density peak are grouped into a feature. Chromatographic peaks grouped into the same feature are indicated with a grey rectangle."
 
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr, chunkSize = CORES)
@@ -854,7 +852,7 @@ ms_data <- groupChromPeaks(ms_data, param = pdp)
    correspondence results. Repeat for all *m/z* ranges from **Section 3.2.3**.
 
 ```{r Figure-10}
-#| fig-cap: "Correspondence analysis results for the *m/z* window containing signal of proline."
+#| fig-cap: "Figure 10: Correspondence analysis results for the *m/z* window containing signal of proline."
 
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr, chunkSize = CORES)
@@ -872,6 +870,7 @@ grid()
    the data set.
 
 ```{r Figure-11}
+#| fig-cap: "Figure 11: Dotplot of m/z versus retention time values of this dataset.
 #' Plot m/z vs. rt for the data set
 plot(NA, NA, xlim = range(rtime(spectra(ms_data))),
      ylim = c(0, 1000),
@@ -940,9 +939,9 @@ relevant features.
 
 Finally, metabolite annotation of significant or interesting features is a
 critical step for biological interpretation, enabling insights into the
-metabolic pathways or processes involved. The exact post-processing pipeline may
-vary depending on the research question, experimental design, and biological
-matrix.
+metabolic pathways or processes involved. The exact post-processing workflow
+may vary depending on the research question, experimental design, and
+biological matrix.
 
 For practical code examples and guidance on the post processing, we refer the
 reader to the many [example
@@ -1009,7 +1008,7 @@ write.csv(fd_data,
 ```
 
 4) Export the MS/MS spectra in MGF format. To support metabolite annotation in
-   external tools (e.g., GNPS, MS-DIAL, or SIRIUS), the MS/MS spectra associated
+   external tools (e.g., GNPS, MS-DIAL, SIRIUS, or MzMine), the MS/MS spectra associated
    with detected MS features are exported to the Mascot Generic Format
    (MGF). The `MsBackendMgf()` backend function is used here to write the
    compatible files. To allow association between the exported feature
@@ -1065,10 +1064,12 @@ install.packages("BiocManager")
 BiocManager::install("BiocStyle")
 ```
 
-4) Alternatively to using the `read_xlsx()` function from the *readxl* R
-   package, the same tabular information could also be defined directly in R as
-   a `data.frame` object, but it is generally better, and more convenient to the
-   user, to define and load such spreadsheet from as spreadsheet program.
+4) The user can also read Excel (`.xlsx`) files using the `read_xlsx()`
+   function from the `readxl` R package. However, the resulting object should 
+   be converted into a `data.frame` using `as.data.frame()` before beginning 
+   the analysis. Alternatively, the same tabular data can be created directly 
+   in R as a `data.frame`, but it is usually more practical and user-friendly 
+   to define and load the spreadsheet using a spreadsheet program.
 
 5) For improved visualization, it is recommended to assign specific colors to
    individual samples as well as to sample groups. These color settings can be
