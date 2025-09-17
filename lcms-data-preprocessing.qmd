@@ -123,9 +123,9 @@ to adapt them to the experiment.
 ## 2.2 Data set
 
 The LC-MS data used in this chapter comes from a small, publicly available
-untargeted metabolomics study. It can be found on the MetaboLights 
-[@yurekten_metabolights_2024] repository (accession: *MTBLSXX*) and can be 
-downloaded from the archive for use in this tutorial.
+untargeted metabolomics study. It can be found on the MassIVE repository
+(accession: MSV000099121) and can be downloaded from the archive for use in this
+tutorial.
 
 Samples were analyzed using HILIC UPLC-QTOF-MS in
 positive ionization modes, as described in [@volani_vams-based_2023]. Raw data
@@ -205,14 +205,13 @@ automation (*knitr*, *BiocStyle*).
 
 To ensure complete reproducibility [@markowetz_five_2015] of the present
 analysis, the workflow as well as the data are publicly available through GitHub
-and MetaboLights [@yurekten_metabolights_2024] respectively. Users can either
+and MassIVE respectively. Users can either
 manually install all required dependencies, or load and run a Docker image that
 contains the workflow, the data and all required software allowing interactive
 evaluation of the code locally on the user's computer.
 
 Information on the workflow files, data and installation instructions are
-available at https://github.com/jorainer/xcms-preprocessing-protocol . [FINDME
-@jo: rename repository]
+available at https://github.com/jorainer/xcms_preprocessing_chapter .
 
 # 3. Methods
 
@@ -338,19 +337,19 @@ also verify whether the data was acquired in centroid mode, a requirement for
 peak detection, and extract signal characteristics such as chromatographic peak
 width and *m/z* mass deviation using the example compounds. An EIC visualizes
 the measured signal (intensity) for a particular ion of a compound along the
-retention time axis. It allows inspection of the number of available data 
-points and the shape of the elution pattern. While for the present example we 
-extract the EIC only for proline, a metabolite that is known to be present in 
-human serum samples, for real experiments signal for multiple compounds or 
-ions, ideally from retention time regions along the full retention time range, 
+retention time axis. It allows inspection of the number of available data
+points and the shape of the elution pattern. While for the present example we
+extract the EIC only for proline, a metabolite that is known to be present in
+human serum samples, for real experiments signal for multiple compounds or
+ions, ideally from retention time regions along the full retention time range,
 should be extracted and their signal evaluated. These initial steps help ensure
-that the data is suitable for automated processing and allow optimization of 
+that the data is suitable for automated processing and allow optimization of
 parameter settings for robust peak detection and alignment.
 
 ### 3.2.1 Visualize base peak chromatogram
 
 1) Create a base peak chromatogram of the full data set and plot it. The BPC is
-   plotted to assess chromatographic drift or shifts, sample quality or 
+   plotted to assess chromatographic drift or shifts, sample quality or
    outliers, and the presence of systematic noise or chemical contamination
    (e.g., polymer peaks). With parameter `aggregationFun = "max"` the highest
    intensity per spectrum is reported, while setting `aggregationFun = "sum"`
@@ -619,7 +618,7 @@ ms_data <- refineChromPeaks(ms_data, param = mnpp, chunkSize = CORES)
    the quantiles of retention time widths and *m/z* widths.
 
 ```{r}
-#| fig-cap: "Table 3: Summary of peaks count per sample." 
+#| fig-cap: "Table 3: Summary of peaks count per sample."
 #' View summary of identified peaks
 data.frame(sample_name = sampleData(ms_data)$sample_name,
            peak_count = as.integer(table(chromPeaks(ms_data)[, "sample"]))) |>
@@ -674,7 +673,7 @@ anchor peaks.
    peak has to be present in at least two out of the 3 samples per sample
    group. Parameters `binSize` and `ppm` depend on the resolution of the MS
    instrumentation and proper calibration across measurement runs.
-   Chromatographic peaks (within and between samples) with a difference in 
+   Chromatographic peaks (within and between samples) with a difference in
    *m/z* value smaller than `binSize` + `ppm` of the peaks' *m/z* will be
    grouped into a feature. Choices should depend on the maximal expected
    absolute difference of *m/z* values for signals of the same compound in
@@ -1065,10 +1064,10 @@ BiocManager::install("BiocStyle")
 ```
 
 4) The user can also read Excel (`.xlsx`) files using the `read_xlsx()`
-   function from the `readxl` R package. However, the resulting object should 
-   be converted into a `data.frame` using `as.data.frame()` before beginning 
-   the analysis. Alternatively, the same tabular data can be created directly 
-   in R as a `data.frame`, but it is usually more practical and user-friendly 
+   function from the `readxl` R package. However, the resulting object should
+   be converted into a `data.frame` using `as.data.frame()` before beginning
+   the analysis. Alternatively, the same tabular data can be created directly
+   in R as a `data.frame`, but it is usually more practical and user-friendly
    to define and load the spreadsheet using a spreadsheet program.
 
 5) For improved visualization, it is recommended to assign specific colors to
