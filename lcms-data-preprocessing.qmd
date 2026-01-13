@@ -20,8 +20,6 @@ knitr::opts_knit$set(root.dir = './')
 
 # Abstract
 
-*#FINDME 200 words. open access, teaser. @phili: ok?**
-
 Liquid chromatography-mass spectrometry (LC-MS) is a cornerstone technology in
 metabolomics, enabling high-throughput detection of small molecules across
 diverse biological samples. However, raw LC-MS data are complex, requiring
@@ -131,9 +129,9 @@ to adapt them to the experiment.
 
 The LC-MS data used in this chapter comes from a small, publicly available
 untargeted metabolomics study. Samples were analyzed using HILIC UPLC-QTOF-MS in
-positive ionization modes, as described in *XXX [FINDME @jo:
-REF to paper LC-MS METHOD]*. Raw data files are provided in the open and
-vendor-independent .mzML format (*see* **Note 2**).
+positive ionization modes, as described in [@volani_vams-based_2023]. Raw data
+files are provided in the open and vendor-independent .mzML format (*see*
+**Note 2**).
 
 The data set consists of pooled human serum samples, which represent internal
 quality control (QC) samples, each spiked with a set of 15 compounds at two
@@ -212,14 +210,13 @@ automation (*knitr*, *BiocStyle*).
 
 To ensure complete reproducibility [@markowetz_five_2015] of the present
 analysis, the workflow as well as the data are publicly available through GitHub
-and MetaboLights respectively [FINDME REF]. Users can either manually install
-all required dependencies, or load and run a Docker image that contains the
-workflow, the data and all required software allowing interactive evaluation of
-the code locally on the user's computer.
+and MetaboLights respectively [@yurekten_metabolights_2024]. Users can either
+manually install all required dependencies, or load and run a Docker image that
+contains the workflow, the data and all required software allowing interactive
+evaluation of the code locally on the user's computer.
 
 Information on the workflow files, data and installation instructions are
-available at https://github.com/jorainer/xcms-preprocessing-protocol . [FINDME
-@jo: rename repository]
+available at https://github.com/jorainer/xcms-preprocessing-protocol.
 
 # 3. Methods
 
@@ -332,6 +329,10 @@ sampleData(ms_data)[, c("mzML", "sample_name", "mode", "collision_energy",
 #' Define colors by concentration levels: high and low
 col_concentration <- c(low = "#FF7F00", high = "#A65628")
 col_sample <- col_concentration[sampleData(ms_data)$concentration]
+
+#' Path to save images to
+IMAGE_PATH <- "images/"
+dir.create(IMAGE_PATH, recursive = TRUE)
 ```
 
 ## 3.2 Initial data inspection
@@ -361,7 +362,7 @@ optimization of parameter settings for robust peak detection and alignment.
    would sum-up all intensities per spectrum, hence generating a total ion
    chromatogram (TIC).
 
-```{r}
+```{r Figure1, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Create a BPC
 bpc <- chromatogram(ms_data, aggregationFun = "max", chunkSize = CORES)
 
@@ -415,7 +416,7 @@ proline_mzr <- cbind(mzmin = proline_mz - 0.01, mzmax = proline_mz + 0.01)
 
 5) Extract and plot the EIC of proline.
 
-```{r}
+```{r Figure2, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Extract the EIC for proline
 proline_eic <- chromatogram(ms_data, mz = proline_mzr, rt = c(160, 200))
 
@@ -433,7 +434,7 @@ grid()
    parameter `rt` of the `chromatogram()` function and extract the ion trace for
    the full full retention time range.
 
-```{r}
+```{r Figure3, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Extract the EIC for an unknown compound
 unknown_eic <- chromatogram(ms_data, mz = c(106.0399, 106.0599))
 
@@ -450,7 +451,7 @@ grid()
    readability of the code, the R *pipe operator* (`|>`) is used to
    concatenate subsequent function calls.
 
-```{r}
+```{r Figure4, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Check if data is in centroid mode
 ms_data_proline <- ms_data[1] |>
     filterSpectra(filterRt, c(167, 172)) |>
@@ -525,7 +526,7 @@ proline_eic <- findChromPeaks(proline_eic, param = cwp)
 2) Plot and visually inspect the chromatographic peak detection results of the
    EIC.
 
-```{r}
+```{r Figure5, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Plot the proline EIC after peak detections
 plot(proline_eic,
      peakCol = paste0(col_sample[chromPeaks(proline_eic)[, "column"]], 80),
@@ -725,7 +726,7 @@ ms_data <- adjustRtime(ms_data, param = pgp)
    should span most of the retention time range. If needed, adapt parameters and
    repeat the initial correspondence and alignment.
 
-```{r}
+```{r Figure6, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Plot the adjusted rt vs. rt differences before and after correction
 plotAdjustedRtime(ms_data, col = paste0(col_sample, 80))
 grid()
@@ -734,7 +735,7 @@ grid()
 4) Create the BPC after retention time alignment to visually compare with the
    original BPC.
 
-```{r}
+```{r Figure7, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Create the BPC after rt alignment
 bpc_adj <- chromatogram(ms_data, chromPeaks = "none", aggregationFun = "max", 
                         chunkSize = CORES)
@@ -750,7 +751,7 @@ grid()
 5) Evaluate improved retention time alignment on each EICs, to visually before
    vs. after correction.
 
-```{r}
+```{r Figure8, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Extract the EIC for proline with corrected rt
 proline_eic_adj <- chromatogram(ms_data, mz = proline_mzr, chunkSize  = CORES)
 
@@ -784,7 +785,7 @@ depends on similarity of the peaks' *m/z* and retention time values.
    correspondence. Plot the resulting EIC and simulate a correspondence analysis
    with the defined configuration.
 
-```{r}
+```{r Figure9, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr)
 
@@ -820,7 +821,7 @@ ms_data <- groupChromPeaks(ms_data, param = pdp)
    `plotChromPeakDensity()`. Use parameter `simulate = FALSE` to show the actual
    correspondence results. Repeat for all *m/z* ranges from **Section 3.2.3**.
 
-```{r}
+```{r Figure10, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Extract EIC for the full rt range for EICs' m/z ranges
 eic <- chromatogram(ms_data, mz = proline_mzr)
 
@@ -836,7 +837,7 @@ grid()
    setup. Use `ylim = range(unlist(mz(spectra(ms_data))))` to calculate it from
    the data set.
 
-```{r}
+```{r Figure11, fig.path = IMAGE_PATH, fig.height = 7, fig.width = 10, dpi = 300, res = 300}
 #' Plot m/z vs. rt for the data set
 plot(NA, NA, xlim = range(rtime(spectra(ms_data))),
      ylim = c(0, 1000),
